@@ -4,3 +4,5 @@
 由 Stage 11（前端/后端实现与联调测试）产出。
 
 **约定输出**：`implementation_notes.md` + `test_report.md`（Markdown）
+
+**全流程测试包**：`full_flow_test_guide/index.html`（模块、架构图、技术栈、逐步验收、Jenkins 与 AI 边界）+ 可执行资产 `backend/qa/full_flow/`（隔离 QA 环境、真实 Docker Jenkins、live/Jenkins E2E）。
