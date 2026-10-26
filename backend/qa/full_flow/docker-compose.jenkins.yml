@@ -1,0 +1,35 @@
+name: huntai-qa-jenkins
+
+services:
+  jenkins:
+    build:
+      context: ./jenkins
+    container_name: huntai-qa-jenkins
+    ports:
+      # Loopback only: this Jenkins is a local test double, not a shared service.
+      - "127.0.0.1:${QA_JENKINS_PORT:-8088}:8080"
+    environment:
+      # Wizard off; CSRF off so the platform's Basic-auth POST /build works.
+      JAVA_OPTS: >-
+        -Djenkins.install.runSetupWizard=false
+        -Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true
+        -Duser.timezone=Asia/Shanghai
+      # The API listens on the host's 0.0.0.0:${QA_API_PORT}; Docker Desktop maps
+      # that to host.docker.internal.  On Linux extra_hosts below provides the name.
+      HUNTAI_BASE_URL: "http://host.docker.internal:${QA_API_PORT:-8013}"
+      HUNTAI_CI_CONNECTOR_ID: "${QA_CI_CONNECTOR_ID}"
+      JENKINS_WEBHOOK_SECRET: "${JENKINS_WEBHOOK_SECRET}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/json"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

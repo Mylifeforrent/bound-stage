@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <description>HuntAI QA · sends the COMPLETED webhook after full-flow-smoke is final. A separate downstream job is used because a freestyle build is still marked "building" while its own post-build steps run.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command><![CDATA[
+set -eu
+set +x
+
+
+UPSTREAM_JOB="full-flow-smoke"
+INFO=""
+for _ in $(seq 1 30); do
+  INFO="$(curl -fsS "http://127.0.0.1:8080/job/$UPSTREAM_JOB/lastBuild/api/json")"
+  BUILDING="$(printf '%s' "$INFO" | jq -r '.building')"
+  [ "$BUILDING" = "false" ] && break
+  sleep 1
+done
+BUILD_NUMBER="$(printf '%s' "$INFO" | jq -r '.number')"
+# Give the platform's initial trigger-side collector time to finish before the
+# completed webhook starts a second collection (the local harness avoids the
+# concurrent observation/collection race this way).
+sleep 8
+RESULT="$(printf '%s' "$INFO" | jq -r '.result // "SUCCESS"')"
+case "$RESULT" in
+  SUCCESS) STATUS="SUCCESS" ;;
+  FAILURE) STATUS="FAILURE" ;;
+  *) STATUS="ABORTED" ;;
+esac
+
+BODY="$(printf '{"job":{"name":"%s"},"build":{"number":%s,"phase":"COMPLETED","status":"%s"}}' "$UPSTREAM_JOB" "$BUILD_NUMBER" "$STATUS")"
+SIG="$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$JENKINS_WEBHOOK_SECRET" -r | cut -d' ' -f1)"
+curl -fsS -X POST "$HUNTAI_BASE_URL/api/v1/inbound-webhooks/$HUNTAI_CI_CONNECTOR_ID" \
+  -H 'Content-Type: application/json' \
+  -H "x-hub-signature-256: sha256=$SIG" \
+  -H "x-github-delivery: jenkins-$UPSTREAM_JOB-$BUILD_NUMBER-completed" \
+  -H 'x-github-event: ci_build' \
+  --data-binary "$BODY"
+echo "notified platform: $UPSTREAM_JOB #$BUILD_NUMBER $STATUS"
+      ]]></command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+</project>

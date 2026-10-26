@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <description>HuntAI QA · real Jenkins smoke job. Archives a passing JUnit report and notifies the platform on start; the downstream notify job sends the completed webhook after the build is final.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>branch</name>
+          <description>Branch under test (passed by the platform through params_schema).</description>
+          <defaultValue>main</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command><![CDATA[
+set -eu
+set +x
+
+
+BRANCH_SAFE="$(printf '%s' "${branch:-main}" | tr -c 'A-Za-z0-9_.-' '_')"
+
+send_started() {
+  local body sig
+  body="$(printf '{"job":{"name":"%s"},"build":{"number":%s,"phase":"STARTED","status":""}}' "$JOB_NAME" "$BUILD_NUMBER")"
+  sig="$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$JENKINS_WEBHOOK_SECRET" -r | cut -d' ' -f1)"
+  curl -fsS -X POST "$HUNTAI_BASE_URL/api/v1/inbound-webhooks/$HUNTAI_CI_CONNECTOR_ID" \
+    -H 'Content-Type: application/json' \
+    -H "x-hub-signature-256: sha256=$sig" \
+    -H "x-github-delivery: jenkins-$JOB_NAME-$BUILD_NUMBER-started-$(date +%s)-$$" \
+    -H 'x-github-event: ci_build' \
+    --data-binary "$body" >/dev/null \
+    || echo "WARN: STARTED webhook failed (the completed webhook can still resume the run)" >&2
+}
+
+send_started
+
+cat > junit.xml <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="full-flow-smoke" tests="1" failures="0" errors="0" skipped="0" time="0.1">
+  <testcase classname="huntai.qa.jenkins" name="jenkins_smoke_passes" time="0.1"/>
+</testsuite>
+XML
+
+printf '{"job":"%s","build":%s,"branch":"%s","result":"passed"}\n' \
+  "$JOB_NAME" "$BUILD_NUMBER" "$BRANCH_SAFE" > report.json
+
+echo "full-flow-smoke: branch=$BRANCH_SAFE build=$BUILD_NUMBER"
+echo "junit.xml and report.json prepared"
+      ]]></command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.junit.JUnitResultArchiver>
+      <testResults>junit.xml</testResults>
+      <keepLongStdio>false</keepLongStdio>
+      <healthScaleFactor>1.0</healthScaleFactor>
+      <allowEmptyResults>false</allowEmptyResults>
+    </hudson.tasks.junit.JUnitResultArchiver>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>junit.xml,report.json</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+      <followSymlinks>false</followSymlinks>
+    </hudson.tasks.ArtifactArchiver>
+    <hudson.tasks.BuildTrigger>
+      <childProjects>notify-full-flow-smoke</childProjects>
+      <threshold>
+        <name>SUCCESS</name>
+        <ordinal>0</ordinal>
+        <color>BLUE</color>
+        <completeBuild>true</completeBuild>
+      </threshold>
+    </hudson.tasks.BuildTrigger>
+  </publishers>
+</project>

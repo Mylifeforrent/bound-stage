@@ -40,3 +40,6 @@ tmp/
 temp/
 # 本地运行时制品卷（object_store 本地卷）
 backend/artifacts/
+
+# 全流程 QA 测试包的运行目录（PID / 日志 / 制品 / 报告）
+backend/qa/full_flow/.runtime/

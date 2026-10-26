@@ -98,7 +98,12 @@ def _session_cookie_name() -> str:
 
 
 def _webhook_secret() -> str:
-    return _env_file_value("GITHUB_WEBHOOK_SECRET") or "local-dev-github-webhook-secret"
+    return (
+        os.environ.get("HUNTAI_WEBHOOK_SECRET")
+        or os.environ.get("GITHUB_WEBHOOK_SECRET")
+        or _env_file_value("GITHUB_WEBHOOK_SECRET")
+        or "local-dev-github-webhook-secret"
+    )
 
 
 def _cookie_override(role: str) -> str:
