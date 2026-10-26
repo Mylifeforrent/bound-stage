@@ -1,11 +1,11 @@
 # Stage 9 · 高保真设计说明与 Token
 
 > - **阶段**：Stage 9（`docs/09_figma_highfi`）
-> - **日期**：2026-09-12
-> - **Status**：已产出（本轮无独立 Figma 文件；视觉权威 = 本文件 + `frontend/` 源码）
-> - **代码基线**：layout 优化与 token 别名落在同次变更
+> - **日期**：2026-10-26（v2；首版 2026-09-12）
+> - **Status**：已产出 v2（本轮无独立 Figma 文件；视觉权威 = 本文件 + `frontend/` 源码）
+> - **v2 变更基线**：吸收 [轻量级原型 v0.3](../05_prototype/index.html) 的重构级布局（用户裁定）——侧栏树导航 / 面包屑 / 全局搜索占位 / 工作台统计带 / 执行发起向导轨 / 证据深色查看面板 / 浏览器窗框截图占位 / 审批风险色脊；交互约定正文见 [interaction_flows.md §1.2](../04_interaction_design/interaction_flows.md)
 > - **上游**： [frontend_design_spec-v1.0.md](../06_architecture_design/frontend_design_spec-v1.0.md)（页面 / 路由 / 分区顺序 / 七态 / 断点）· [problem_model.md](../03_problem_modeling/problem_model.md) §4.3 · `frontend/src/index.css`（色 / 字体 / 圆角的唯一色值源）
-> - **不新增** 页面、导航项、状态、US / FR / API；**不调换** P08 / P09 / P10 分区顺序；**不发明** 未在 CSS 出现过的色值
+> - **不新增** 页面、一级导航项、状态、US / FR / API；**不调换** P08 / P09 / P10 分区顺序；**不发明** 未在 CSS 出现过的色值（原型级呈现组件仅结构变化，token 不变）
 
 ## 1. 范围与交付
 
@@ -105,27 +105,49 @@
 
 滚动条滑块映射到 `--color-border`，悬停 `--color-muted-foreground`（不再使用未登记 hex）。
 
+### 2.8 动效 Token（v2 新增；全部基于既有 Tailwind duration 档，无新值）
+
+| Token | 值 | 用途 |
+|---|---|---|
+| 页面切换 | 渐入 + 上移 5px，`duration-200` | `AppLayout` 内容区 `.page` 级 |
+| 微交互过渡 | `duration-150`（150ms） | 按钮 / 徽章 / 表格行 / 树节点 / 卡片 hover |
+| 进度条推进 | `duration-300` | 预算 bar / 统计带 |
+| 呼吸高亮 | 1.8s 循环，box-shadow 外扩 | TestRun 当前态（WAITING_*）、步进轨激活节点 |
+| reduced-motion | `prefers-reduced-motion: reduce` 下禁用全部动画/过渡 | 全局媒体查询 |
+
+### 2.9 字阶（v2 冻结为统一模数，禁止游离字号）
+
+`11 / 12 / 12.5 / 13.5 / 14（正文）/ 16 / 20（页标题）px`；编号、哈希、金额一律 `--font-mono` + `tabular-nums`。Tailwind 等价类见 §2.6；原型级新档（12.5 / 13.5）对应 `text-[12.5px]` / `text-[13.5px]`，实现时若 Tailwind 无档可用语义类，不散写。
+
 ### 2.7 聚类 7 值（只渲染已定义枚举）
 
 标签文案在 `ClusterCard`：`env_down` 环境故障 · `auth_expired` 认证过期 · `locator_stale` 定位器过期 · `assertion_real_bug` 真实缺陷 · `flaky` 不稳定测试 · `data_issue` 数据问题 · `unknown` 未知（`Badge variant="warning"`，卡片 `border-warning/40`）。**不另配 7 套新色。**
 
-## 3. 全局壳层
+## 3. 全局壳层（v2：侧栏树导航）
 
-实现：`frontend/src/components/layout/AppLayout.tsx`。
+实现：`frontend/src/components/layout/AppLayout.tsx` + `frontend/src/components/layout/navTree.tsx`。
 
 ```
-┌──────── w-56 / w-16 ────────┬────────────── flex-1 ──────────────┐
-│ 品牌 H + HuntAI Test        │ 顶栏 h-12：折叠 · 租户/用户 · AI 横幅 · 通知 · 退出 │
-│ 一级导航 8 项（P18/P19 隐藏）│ ［只读条 &lt;1024］［再认证条］［二级 Subnav］ │
-│                             │ main max-w-7xl gap-6 p-6/p-4      │
-└─────────────────────────────┴───────────────────────────────────┘
+┌── w-56 / w-16 ──┬───────────────────── flex-1 ─────────────────────┐
+│ 品牌块 + 副标题  │ 顶栏 h-12：折叠 · 面包屑(分组›页面) · 全局搜索占位  │
+│ 一级导航 10 项   │            · AI 横幅(降级时) · 通知 · 退出        │
+│ (P18/P19 隐藏)  │ ［只读条 <1024］［再认证条］［AI 降级横幅条 warn 时］│
+│ 项目      ▸     │ main max-w-7xl gap-6 p-6/p-4                     │
+│   · 总览 P02    │                                                  │
+│   · 用例 P05 …  │                                                  │
+│ 测试中心  ▸ ··· │                                                  │
+│ 门禁      ▸ ··· │                                                  │
+│ 发布 / 审批 /…  │                                                  │
+│ 管理后台  ▸ ··· │                                                  │
+└─────────────────┴──────────────────────────────────────────────────┘
 ```
 
-- 一级导航（IA 10 项中当前可见 8）：工作台 / 项目 / 测试中心 / 门禁 / 发布 / 审批中心 / 证据 / 管理。助手 / 技能按里程碑隐藏。
-- ≥1280：侧栏可手动折叠。1024–1279：**强制图标侧栏**（规范 §7）。&lt;1024：图标侧栏 + 只读黄条，命令按钮不出现。
-- 顶栏租户 / 用户只渲染 API-005 `organization.name` 与 `user.display_name`。
-- 通知铃对应缺口 G4；API-022 未开发时标明「通知未开发」，**不假装未读数**。审批待办徽标仍在「审批中心」项。
-- AI 降级横幅：服务端 `capability_controls`，不静默。
+- **侧栏树导航**：一级导航 IA 10 项（可见 8，助手 / 技能按里程碑隐藏 + 角标 M3+/M4）；项目 / 测试中心 / 门禁 / 管理后台四组内嵌可展开子树（项目 7 / 测试中心 3 / 门禁 2 / 管理 6，子项带 P 编号）。分组标签点击进落地页，行尾箭头仅展开/收起（旋转 90°）；当前路由自动展开所在分组、子项点亮（描边点 + 底色）。子项注记：「执行」= P09 项目过滤视图（缺口 G1）、「环境」双入口同页。
+- **面包屑**：顶栏「分组 › 页面」两级（NavTree 配置推导）；无分组页仅页面名。不做第三级（资源名由页内页头承担）。
+- **全局搜索**：顶栏搜索输入为**原型占位** `[TBD-UX]`（IA 无承接页；回车仅提示，不新增页面）。
+- ≥1280：侧栏可手动折叠。1024–1279：**强制图标态**（只显示一级图标，子树隐藏）。&lt;1024：图标侧栏 + 只读黄条，命令按钮不出现。
+- **AI 降级横幅**：复用 `AiDegradeBanner` 组件挂在壳层（header 下方全宽），`active = capability_controls 存在收紧项`，scope 用 `banner_scope` / 关停文案；正常运行时不渲染横幅（降噪），header 保留状态胶囊（含「无组织访问权限 / 待 API-010」过渡态）。不静默。
+- 通知铃对应缺口 G4；API-022 未开发时标明「通知未开发」，**不假装未读数**。审批待办徽标仍在「审批中心」项（API-022 计数）。
 
 ## 4. 组件契约
 
@@ -143,8 +165,11 @@
 | ApprovalCard | `domain/ApprovalCard.tsx` | 区序冻结，见 §5.2 |
 | ClusterCard | `domain/ClusterCard.tsx` | 五要素 + 7 值枚举 |
 | RunProgressBar | `domain/RunProgressBar.tsx` | TestRun 10 态 |
-| EvidenceViewer | `domain/EvidenceViewer.tsx` | 截图 / 视频 / Trace |
-| AiDegradeBanner | `domain/AiDegradeBanner.tsx` | 全局 + 聚类区局部 |
+| EvidenceViewer | `domain/EvidenceViewer.tsx` | 截图 / 视频 / Trace；截图位用浏览器窗框样式（窗口圆点 + 地址栏）标识脱敏证据占位；视频 / Trace 深色查看面板；Trace 用瀑布条呈现 span 时长（失败 span 红） |
+| AiDegradeBanner | `domain/AiDegradeBanner.tsx` | **壳层全局挂载**（v2）+ 聚类区局部复用；正常运行不渲染 |
+| NavTree | `layout/navTree.tsx`（v2 新增） | 一级 IA 配置 + 可展开子树；分组标签为落地页链接、箭头仅开合；子项带 P 编号与注记；自动展开当前分组；图标态隐藏子树 |
+| Breadcrumb | `layout/navTree.tsx`（v2 新增） | 「分组 › 页面」两级，由 NavTree 配置按路径推导；无分组页仅页面名 |
+| StatTile | P01 页内（v2 新增） | 汇总统计瓦片：数字（tabular-nums）+ 标签 + 图标瓦片；点击页内锚点滚动并短暂描边高亮；不跨页跳转 |
 
 shadcn 源码内置，禁止改为 npm 包或换成 Ant / MUI。
 
@@ -154,15 +179,19 @@ shadcn 源码内置，禁止改为 npm 包或换成 Ant / MUI。
 
 顺序不可调换：**项目选择（数据前置）→ ① 模式 Script/Agent → ② 环境（仅 selectable）→ ③ 参数 → 发起执行。**
 
-实现：`ExecutionLaunchPage.tsx` 三个 `Layer` + `StepMark`。Agent 受限说明仍在模式层。&lt;1024 隐藏「发起执行」，表单可看。
+实现：`ExecutionLaunchPage.tsx` 三个 `Layer` + `StepMark`。v2 向导轨：层间竖向连线，节点（1/2/3）随选择推进变完成态（绿色对勾）——仅呈现层标记，校验仍以服务端 VALIDATING 为准。Agent 受限说明仍在模式层。&lt;1024 隐藏「发起执行」，表单可看。
 
 ### 5.2 P09 TestRun 详情
 
 顺序：**页头 10 态进度条 → 聚类报告区 → 用例结果表 → 证据查看器。** `execution_source` 徽标挂在进度区，不插入新分区。WAITING_APPROVAL 高亮跳 P10。等待态不得因耗时隐藏。
 
+v2 呈现：进度条为**连接线式步进轨**（chip 节点 + 2px 连线段，已完成段蓝、当前态呼吸高亮、横向滚动不折行，终态四色可见）；聚类簇卡片按 7 值枚举加左色脊；证据查看器截图 / 视频 / Trace 于深色查看面板，Trace 为瀑布条。
+
 ### 5.3 P10 审批卡片
 
 `data-zone` 顺序必须为：`invalid`（若有）→ `1` 动作与目标 → `2` diff → `3` 来源与模型 → `4` 风险+成本 → `5` 回滚 → `6` 参数哈希（默认折叠）→ `actions`。测试 `ApprovalCard.test.tsx` 钉住。&lt;1024 保留区序，操作区只出示只读说明。
+
+v2 呈现：卡片按风险等级加**左色脊**（L2 `risk-l2` / L3 `risk-l3` / L4 `risk-l4`）；分区序号由 CSS counter / 组件内序号生成；操作区收进灰底操作条（批准 / 拒绝（附理由）/ 修改后重新提交）。
 
 ## 6. 页面布局清单（P01–P25）
 
@@ -170,7 +199,7 @@ shadcn 源码内置，禁止改为 npm 包或换成 Ant / MUI。
 
 | 编号 | 布局要点 |
 |---|---|
-| P01 工作台 | 页头 + 指标 `1 / lg:2 / xl:4` 列 + 待审批/进行中列表 `1 / xl:2` 列。WAITING_* 滞留秒数原样展示 |
+| P01 工作台 | 页头 + **汇总统计带 4 瓦片（v2，页内锚点）** + 指标 `1 / lg:2 / xl:4` 列 + 待审批/进行中列表 `1 / xl:2` 列。WAITING_* 滞留秒数原样展示 |
 | P02 项目总览 | 卡片网格 `1 / lg:2 / xl:3` |
 | P03 集成 | 项目级绑定表 + 未开发/空态；保存绑定为命令 |
 | P04 项目设置 | 成员与角色表单；&lt;1024 隐藏添加/改角色/移除 |
@@ -215,3 +244,10 @@ shadcn 源码内置，禁止改为 npm 包或换成 Ant / MUI。
 | — | 本轮无 PNG / SVG 切图；无 Figma 链接 |
 
 登录后的界面截图待 mock IdP 与浏览器同机后再补，不把未拍摄的文件登记为已有。
+
+## 9. 变更记录
+
+| 版本 | 日期 | 说明 |
+|---|---|---|
+| v1 | 2026-09-12 | 首版：token 全表摘自 `frontend/src/index.css`；全局壳、组件契约、三关键页分区冻结、P01–P25 布局要点、七态与断点 |
+| v2 | 2026-10-26 | 吸收原型 v0.3 重构级布局（用户裁定）：§2.8 动效 token、§2.9 字阶冻结、§3 侧栏树导航 / 面包屑 / 全局搜索占位 / 壳层级 AI 降级横幅；§4 新增 NavTree / Breadcrumb / StatTile 组件契约并更新 EvidenceViewer 呈现；§5 三关键页呈现层增强（顺序不变）；§6 P01 统计带。色值零变更、IA 零变更 |
