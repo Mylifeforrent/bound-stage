@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<!--
+  HuntAI Test · 轻量级 HTML 原型 v0.3（单文件，无构建、无外部运行时依赖；字体离线时回退系统栈）
+  v0.3（2026-10-26）：重构级布局重排（应用户要求）——
+  ① 导航重构：二级导航由胶囊条改为「侧栏可展开树」+ 顶栏面包屑（IA 10 项不变，子项=路由树）；
+  ② P01 工作台加 4 枚汇总统计带（同四区块的计数呈现，仅页面内锚点滚动，不新增页面跳转）；
+  ③ P08 执行发起改为「向导轨」：三层顺序保持冻结，节点随选择推进出现完成态；
+  ④ P09 详情：状态步进轨改为连接线式（横向滚动）；聚类簇卡片化；证据查看器改深色查看面板 + Trace 瀑布条；
+  ⑤ 截图占位升级为「浏览器窗框」式占位；审批卡片加风险色脊与操作条底色；
+  ⑥ 全面卡头组件（图标瓦片 + 标题 + 元信息 + 动作）统一；表格行 hover / 数字等宽。
+  页面集（P01–P25）、分区顺序、状态徽标仍取自 frontend_design_spec-v1.0 §2/§5/§6，未新增页面/组件语义；
+  设计 token 仍取自 frontend/src/index.css（蓝色体系）。本文件不构成页面权威；数据均为合成演示数据。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>HuntAI Test · 轻量级 HTML 原型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%231d4ed8' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%231d4ed8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font-sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",monospace;
+  --color-background:#f4f6f9; --color-foreground:#0f172a;
+  --color-card:#ffffff; --color-card-foreground:#0f172a;
+  --color-primary:#1d4ed8; --color-primary-foreground:#ffffff;
+  --color-secondary:#eef2f7; --color-secondary-foreground:#334155;
+  --color-muted:#f1f5f9; --color-muted-foreground:#64748b;
+  --color-accent:#eff6ff; --color-accent-foreground:#1e3a8a;
+  --color-destructive:#dc2626; --color-destructive-foreground:#ffffff;
+  --color-border:#e2e8f0; --color-input:#e2e8f0; --color-ring:#1d4ed8;
+  --color-sidebar:#0b1220; --color-sidebar-foreground:#cbd5e1;
+  --color-sidebar-accent:#1e293b; --color-sidebar-primary:#2563eb;
+  --color-success:#047857; --color-success-foreground:#ecfdf5;
+  --color-warning:#b45309; --color-warning-foreground:#fffbeb;
+  --color-info:#1d4ed8; --color-info-foreground:#eff6ff;
+  --color-risk-l0:#475569; --color-risk-l1:#2563eb; --color-risk-l2:#d97706;
+  --color-risk-l3:#ea580c; --color-risk-l4:#dc2626;
+  --radius:0.5rem; --radius-sm:0.375rem; --radius-md:0.5rem; --radius-lg:0.75rem;
+  --text-page-title:1.25rem; --spacing-card:1rem; --spacing-page:1.5rem;
+  --content-max:80rem; --sbw:248px;
+  --fs-2xs:11px; --fs-xs:12px; --fs-sm:12.5px; --fs-md:13.5px; --fs-body:14px; --fs-lg:16px; --fs-xl:20px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --shadow-card:0 1px 2px rgba(15,23,42,.05),0 1px 3px rgba(15,23,42,.04);
+  --shadow-pop:0 10px 28px rgba(15,23,42,.16);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:var(--fs-body)/1.6 var(--font-sans);background:linear-gradient(180deg,#eef2f7 0%,var(--color-background) 180px);background-attachment:fixed;color:var(--color-foreground)}
+button{font:inherit;cursor:pointer;color:inherit}
+a{color:var(--color-primary);text-decoration:none;cursor:pointer}
+a:hover{text-decoration:underline}
+code{font-family:var(--font-mono)}
+.icon{width:16px;height:16px;flex:none;vertical-align:-3px}
+.icon-lg{width:18px;height:18px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--color-muted-foreground)}
+:focus-visible{outline:2px solid var(--color-ring);outline-offset:2px;border-radius:2px}
+::selection{background:#bfdbfe}
+/* ══ 侧栏（深色 · 可展开树导航） ══ */
+.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sbw);background:linear-gradient(180deg,#0e1830 0%,var(--color-sidebar) 220px);color:var(--color-sidebar-foreground);display:flex;flex-direction:column;z-index:40;transition:transform .18s ease}
+.logo{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;color:#fff}
+.logo .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#1e40af);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(37,99,235,.4);flex:none}
+.logo .mark .icon{width:20px;height:20px;color:#fff}
+.logo span{font-weight:600;font-size:15px}
+.logo small{display:block;font-size:10.5px;font-weight:400;color:var(--color-muted-foreground);margin-top:1px}
+.nav{flex:1;padding:2px 10px 10px;display:flex;flex-direction:column;overflow:auto;scrollbar-width:thin}
+.titem{margin:1px 0}
+.trow{display:flex;align-items:center;border-radius:var(--radius);transition:background .15s}
+.trow:hover{background:var(--color-sidebar-accent);color:#fff}
+.trow .tlabel{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 11px;color:inherit;font-size:var(--fs-md);flex:1;min-width:0;text-decoration:none}
+.trow .tlabel:hover{text-decoration:none}
+.trow.active{background:var(--color-sidebar-accent);color:#fff;box-shadow:inset 2.5px 0 0 var(--color-sidebar-primary)}
+.trow.active .tlabel{font-weight:600}
+.tgl{border:none;background:none;color:inherit;padding:8px 8px;opacity:.7;transition:transform .15s}
+.tgl:hover{opacity:1}
+.titem.open .tgl{transform:rotate(90deg)}
+.trow .count{margin-right:4px;background:var(--color-destructive);color:#fff;border-radius:999px;font-size:11px;padding:0 7px;line-height:17px}
+.trow .ms{margin-right:4px;font-size:10.5px;color:var(--color-muted-foreground)}
+.trow.active .ms{color:#94a3b8}
+.tsub{display:none;flex-direction:column;padding:2px 6px 6px}
+.titem.open .tsub{display:flex}
+.tsub a{position:relative;padding:5.5px 10px 5.5px 36px;border-radius:6px;font-size:var(--fs-sm);color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .12s}
+.tsub a::before{content:"";position:absolute;left:25px;top:50%;transform:translateY(-50%);width:4px;height:4px;border-radius:50%;background:#47566e}
+.tsub a:hover{background:var(--color-sidebar-accent);color:#fff;text-decoration:none}
+.tsub a.on{background:var(--color-sidebar-accent);color:#fff;font-weight:500}
+.tsub a.on::before{background:var(--color-sidebar-primary);box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+.tsub .note{padding:3px 10px 5px 36px;font-size:10.5px;color:#5b6b85}
+.sb-foot{padding:12px 16px;border-top:1px solid #16233d;font-size:11px;color:#7a8aa6}
+.sb-foot .mono{display:block;color:var(--color-sidebar-foreground);margin-top:2px}
+/* ══ 主区 / 顶栏 ══ */
+.main{margin-left:var(--sbw);min-height:100vh;display:flex;flex-direction:column;transition:margin .18s ease}
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;height:54px;padding:0 24px;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--color-border)}
+.hamburger{display:none;border:1px solid var(--color-border);background:#fff;border-radius:var(--radius-sm);padding:6px 9px}
+.crumb{display:flex;align-items:center;gap:7px;font-size:var(--fs-body);flex:none}
+.crumb .g{color:var(--color-muted-foreground);font-size:var(--fs-md)}
+.crumb svg{color:#b6c2d4}
+#top-title{font-weight:600}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--color-border);background:var(--color-muted);border-radius:999px;padding:5px 12px;width:min(300px,28vw);transition:border-color .15s,background .15s}
+.search:focus-within{border-color:var(--color-primary);background:#fff}
+.search input{border:none;background:none;outline:none;font:inherit;font-size:var(--fs-sm);width:100%;color:inherit}
+.search .icon{color:var(--color-muted-foreground)}
+.search kbd{font-family:var(--font-mono);font-size:10px;color:var(--color-muted-foreground);border:1px solid var(--color-border);border-radius:4px;padding:0 5px;background:#fff;white-space:nowrap}
+.spacer{flex:1}
+.ghost-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--color-border);background:#fff;border-radius:var(--radius-sm);padding:5px 11px;font-size:var(--fs-sm);transition:border-color .15s,background .15s;white-space:nowrap}
+.ghost-btn:hover{border-color:#94a3b8}
+.ghost-btn[aria-pressed="true"]{background:var(--color-warning-foreground);border-color:var(--color-warning);color:var(--color-warning)}
+.ai-banner{display:none;align-items:center;gap:10px;padding:8px 24px;background:linear-gradient(90deg,var(--color-warning-foreground),#fffdf5);border-bottom:1px solid #fde68a;color:var(--color-warning);font-size:var(--fs-sm)}
+body.ai-degraded .ai-banner{display:flex}
+.content{flex:1;width:100%;max-width:var(--content-max);padding:var(--spacing-page) 24px 56px}
+.page{animation:pagein .2s ease}
+@keyframes pagein{from{opacity:0;transform:translateY(5px)}}
+.page[hidden]{display:none}
+/* ══ 原型标注条（评审用，非产品 UI） ══ */
+.page-annot{display:flex;gap:8px;align-items:flex-start;border:1px dashed #cbd5e1;background:linear-gradient(180deg,#f8fafc,#f1f5f9);border-radius:var(--radius);padding:6px 12px;font-size:var(--fs-2xs);color:#475569;line-height:1.75;margin-bottom:var(--s3)}
+.page-annot b{flex:none;color:#334155;display:inline-flex;align-items:center;gap:5px}
+.page-annot code{background:#fff;border:1px solid var(--color-border);border-radius:4px;padding:0 5px;font-size:10.5px}
+.ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 var(--s4)}
+.ph h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.01em}
+.ph .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+/* ══ 卡片体系（图标瓦片卡头） ══ */
+.card{background:var(--color-card);border:1px solid var(--color-border);border-radius:12px;padding:var(--spacing-card);box-shadow:var(--shadow-card)}
+.chead{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--color-muted);margin-bottom:12px}
+.chead h2{font-size:var(--fs-md);font-weight:600;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chead .meta{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tile{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.t-blue{background:var(--color-accent);color:var(--color-primary)}
+.t-green{background:var(--color-success-foreground);color:var(--color-success)}
+.t-amber{background:var(--color-warning-foreground);color:var(--color-warning)}
+.t-red{background:#fef2f2;color:var(--color-destructive)}
+.t-gray{background:var(--color-muted);color:var(--color-muted-foreground)}
+.card-sub{font-size:var(--fs-xs);color:var(--color-muted-foreground);margin:8px 0 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)}
+.grid-2-1{display:grid;grid-template-columns:2fr 1fr;gap:var(--s4)}
+.stack{display:flex;flex-direction:column;gap:var(--s4)}
+/* P01 汇总统计带（同四区块计数的呈现；点击仅页内锚点） */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3);margin-bottom:var(--s4)}
+.stat{background:var(--color-card);border:1px solid var(--color-border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:12px;cursor:pointer;transition:box-shadow .15s,transform .15s}
+.stat:hover{box-shadow:var(--shadow-pop);transform:translateY(-1px)}
+.stat .n{font-size:26px;line-height:1.1;font-weight:600;font-variant-numeric:tabular-nums}
+.stat .lb{font-size:var(--fs-xs);color:var(--color-muted-foreground);line-height:1.4}
+.stat .tile{margin-left:auto}
+.n-warn{color:var(--color-warning)} .n-danger{color:var(--color-destructive)} .n-ok{color:var(--color-success)} .n-blue{color:var(--color-primary)}
+/* 徽章 */
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 9px;font-size:11.5px;line-height:19px;border:1px solid transparent;white-space:nowrap}
+.b-success{background:var(--color-success-foreground);color:var(--color-success)}
+.b-warn{background:var(--color-warning-foreground);color:var(--color-warning)}
+.b-danger{background:#fef2f2;color:var(--color-destructive)}
+.b-info{background:var(--color-info-foreground);color:var(--color-info)}
+.b-muted{background:var(--color-muted);color:var(--color-muted-foreground);border-color:var(--color-border)}
+.b-primary{background:var(--color-accent);color:var(--color-accent-foreground)}
+.b-outline{background:#fff;border-color:var(--color-border);color:var(--color-secondary-foreground)}
+/* 按钮 */
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border:1px solid transparent;border-radius:var(--radius-sm);font-size:var(--fs-md);background:linear-gradient(180deg,#2563eb,var(--color-primary));color:var(--color-primary-foreground);box-shadow:0 1px 2px rgba(29,78,216,.35);transition:background .15s,opacity .15s,box-shadow .15s}
+.btn:hover{background:linear-gradient(180deg,#1d4ed8,#1e40af)}
+.btn:active{box-shadow:none}
+.btn.sec{background:#fff;color:var(--color-secondary-foreground);border-color:var(--color-border);box-shadow:none}
+.btn.sec:hover{border-color:#94a3b8;background:#fff}
+.btn.danger{background:linear-gradient(180deg,#ef4444,var(--color-destructive));color:#fff}
+.btn.lg{height:36px;padding:0 22px;font-size:var(--fs-md)}
+.btn.sm{height:24px;padding:0 10px;font-size:var(--fs-xs)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.ai-degraded .ai-dep{opacity:.4;cursor:not-allowed}
+.ai-degraded .ai-dep:hover{background:linear-gradient(180deg,#2563eb,var(--color-primary))}
+.ai-degraded .ai-dep.sec:hover{background:#fff}
+.ai-degraded .ai-hide{display:none!important}
+/* 表格 */
+.table{width:100%;border-collapse:collapse;font-size:var(--fs-md)}
+.table th{text-align:left;font-size:var(--fs-2xs);font-weight:600;letter-spacing:.06em;color:var(--color-muted-foreground);padding:4px 10px 8px;border-bottom:1px solid var(--color-border);white-space:nowrap}
+.table td{padding:9px 10px;border-bottom:1px solid var(--color-border);vertical-align:top;transition:background .12s}
+.table tbody tr:hover td{background:#f6f9fd}
+.table tbody tr:last-child td{border-bottom:none}
+.table b{font-weight:600}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:var(--fs-xs)}
+.kv{display:grid;grid-template-columns:150px 1fr;row-gap:6px;column-gap:12px;font-size:var(--fs-md)}
+.kv dt{color:var(--color-muted-foreground)}
+.kv dd{margin:0}
+.bar{height:7px;border-radius:999px;background:var(--color-muted);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--color-primary);transition:width .3s ease}
+.bar i.ok{background:var(--color-success)} .bar i.warn{background:var(--color-risk-l2)} .bar i.bad{background:var(--color-destructive)}
+/* 风险等级色标（色点用 token，文字用同系深阶保证对比） */
+.risk{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:var(--fs-sm)}
+.risk i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.rk0 i{background:var(--color-risk-l0)} .rk1 i{background:var(--color-risk-l1)}
+.rk2 i{background:var(--color-risk-l2)} .rk3 i{background:var(--color-risk-l3)} .rk4 i{background:var(--color-risk-l4)}
+.rk0{color:var(--color-risk-l0)} .rk1{color:#1d4ed8} .rk2{color:#92400e} .rk3{color:#9a3412} .rk4{color:#991b1b}
+/* TestRun 10 态步进轨（连接线式，横向滚动） */
+.rail-wrap{overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.state-rail{display:flex;align-items:center;gap:0;min-width:max-content}
+.st{font-size:11px;font-family:var(--font-mono);padding:3px 10px;border-radius:999px;border:1px solid var(--color-border);color:var(--color-muted-foreground);background:#fff;white-space:nowrap}
+.st-done{background:var(--color-accent);border-color:#bfdbfe;color:var(--color-accent-foreground)}
+.st-active{background:var(--color-warning-foreground);border:2px solid var(--color-warning);color:var(--color-warning);font-weight:600;animation:pulse 1.8s ease-in-out infinite}
+.st-term-ok{color:var(--color-success);border-color:#a7f3d0}
+.st-term-bad{color:var(--color-destructive);border-color:#fecaca}
+.st-term-timeout{color:var(--color-warning);border-color:#fde68a}
+.rsep{width:16px;height:2px;border-radius:2px;background:var(--color-border);flex:none}
+.rsep.done{background:#93c5fd}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(180,83,9,.12)}}
+/* 审批卡片（九要素；风险色脊；CSS counter 自动编号） */
+.ac{max-width:62rem}
+.ac .risk-spine{position:relative}
+.ac.sp-rk2{border-left:3px solid var(--color-risk-l2)}
+.ac.sp-rk3{border-left:3px solid var(--color-risk-l3)}
+.ac-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ac-id{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--color-muted-foreground)}
+.warnline{display:flex;gap:8px;align-items:flex-start;background:#fef2f2;border:1px solid #fecaca;color:var(--color-destructive);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--fs-sm);margin:0 0 12px}
+.warnline .icon{margin-top:2px}
+.zone{border-top:1px dashed var(--color-border);margin-top:12px;padding-top:10px}
+.zone>.zt{font-size:var(--fs-2xs);color:var(--color-muted-foreground);font-weight:600;letter-spacing:.05em;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.ac{counter-reset:zn}
+.zone>.zt::before{counter-increment:zn;content:counter(zn);width:19px;height:19px;border-radius:50%;background:var(--color-accent);border:1px solid #bfdbfe;color:var(--color-accent-foreground);font-family:var(--font-mono);font-size:10.5px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.diff{font-family:var(--font-mono);font-size:var(--fs-xs);border:1px solid var(--color-border);border-radius:var(--radius-sm);overflow:hidden;background:#fff}
+.diff div{padding:3px 10px;white-space:pre-wrap;word-break:break-all;display:flex;gap:10px}
+.diff div .sign{width:12px;flex:none;text-align:center;opacity:.75}
+.diff .del{background:#fef2f2;color:#b91c1c}
+.diff .add{background:#f0fdf4;color:#15803d}
+.diff .ctx{color:var(--color-muted-foreground);background:#fff}
+.ops{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--color-muted);border-radius:var(--radius-md);margin-top:12px;padding:10px 12px}
+.ops .hint{margin-left:auto;font-size:11px;color:var(--color-muted-foreground)}
+details.fold{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:8px 12px;background:var(--color-muted)}
+details.fold summary{cursor:pointer;font-size:var(--fs-sm);color:var(--color-secondary-foreground)}
+details.fold[open] summary{margin-bottom:8px}
+/* 聚类簇 / 证据查看器 */
+.cluster{border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px;transition:box-shadow .15s;background:#fff}
+.cluster:hover{box-shadow:var(--shadow-card)}
+.cluster.sp-danger{border-left:3px solid var(--color-destructive)}
+.cluster.sp-warn{border-left:3px solid var(--color-risk-l2)}
+.cluster.sp-muted{border-left:3px solid var(--color-border)}
+.cluster .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:var(--fs-sm)}
+.ev-dark{background:radial-gradient(120% 100% at 50% 0,#16233d,var(--color-sidebar));border-radius:10px;color:#94a3b8;min-height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;font-size:var(--fs-sm)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--color-border);margin-bottom:12px}
+.tabs button{border:none;background:none;padding:7px 14px;font-size:var(--fs-md);color:var(--color-muted-foreground);border-bottom:2px solid transparent;transition:color .15s}
+.tabs button:hover{color:var(--color-foreground)}
+.tabs button.on{color:var(--color-primary);border-bottom-color:var(--color-primary);font-weight:600}
+/* Trace 瀑布 */
+.tr-row{display:flex;align-items:center;gap:10px;padding:5px 12px;font-size:11px}
+.tr-row .nm{width:210px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cbd5e1}
+.tr-row .track{flex:1;height:8px;border-radius:4px;background:rgba(148,163,184,.15);position:relative}
+.tr-row .track i{position:absolute;top:0;height:100%;border-radius:4px;background:#3b82f6}
+.tr-row .track i.bad{background:#f87171}
+.tr-row .ms{width:64px;flex:none;text-align:right;color:#94a3b8}
+/* 时间线 */
+.tl{list-style:none;margin:0;padding:0}
+.tl li{position:relative;padding:0 0 18px 24px;border-left:2px solid var(--color-border);margin-left:7px}
+.tl li:last-child{padding-bottom:2px;border-left-color:transparent}
+.tl li::before{content:"";position:absolute;left:-7px;top:4px;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid var(--color-primary)}
+.tl li.ref::before{border-color:var(--color-destructive)}
+.tl .tt{font-weight:600;font-size:var(--fs-md)}
+.tl .td{font-size:var(--fs-sm);color:var(--color-secondary-foreground)}
+/* 浏览器窗框式截图占位 */
+.shot{border:1px solid var(--color-border);border-radius:10px;overflow:hidden;background:#fff;max-width:440px}
+.shot-bar{display:flex;gap:5px;align-items:center;background:var(--color-muted);padding:5px 10px;border-bottom:1px solid var(--color-border)}
+.shot-bar i{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
+.shot-bar .url{margin-left:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--color-muted-foreground);background:#fff;border:1px solid var(--color-border);border-radius:4px;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shot-body{min-height:76px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--color-muted-foreground);font-size:var(--fs-xs);background:linear-gradient(180deg,#f8fafc,#eef2f7)}
+.shot.lg .shot-body{min-height:160px;flex-direction:column}
+/* 环境 / 模式卡 */
+.env-card{border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 14px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;background:#fff;transition:border-color .15s,background .15s,box-shadow .15s}
+.env-card:hover{border-color:#94a3b8}
+.env-card.sel{border-color:var(--color-primary);box-shadow:0 0 0 1px var(--color-primary);background:var(--color-accent)}
+.env-card.lock{opacity:.55;cursor:not-allowed;background:var(--color-muted)}
+.env-card .icon{margin-top:3px}
+.env-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;font-size:var(--fs-sm)}
+.field label,.field>span:first-child{font-weight:600}
+.field .hint{color:var(--color-muted-foreground);font-size:11px;font-weight:400}
+.field input,.field select{border:1px solid var(--color-input);border-radius:var(--radius-sm);padding:7px 10px;font:inherit;font-size:var(--fs-md);background:#fff;width:100%;transition:border-color .15s}
+.field input:hover,.field select:hover{border-color:#94a3b8}
+.field.err input{border-color:var(--color-destructive)}
+.ferr{display:none;color:var(--color-destructive);font-size:11px}
+.field.err .ferr{display:inline}
+/* P08 向导轨（三层顺序冻结；节点完成态） */
+.layer{position:relative;padding-left:38px;margin-bottom:20px}
+.layer::before{content:"";position:absolute;left:13px;top:32px;bottom:-6px;width:2px;background:linear-gradient(180deg,var(--color-border),#e2e8f0)}
+.layer:last-of-type::before{display:none}
+.layer .ln{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid var(--color-primary);color:var(--color-primary);font-size:12.5px;display:flex;align-items:center;justify-content:center;font-weight:600;transition:background .2s,color .2s}
+.layer .ln.done{background:var(--color-success);border-color:var(--color-success);color:#fff}
+.layer h2{font-size:var(--fs-md);font-weight:600;margin:3px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+/* 占位页 */
+.stub ul{margin:8px 0 0;padding-left:18px;font-size:var(--fs-md);color:var(--color-secondary-foreground)}
+.stub li{margin-bottom:5px}
+.stub-ic{width:40px;height:40px;border-radius:10px;background:var(--color-muted);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;color:var(--color-muted-foreground);margin-bottom:10px}
+/* toast */
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(10px);display:flex;gap:8px;align-items:center;background:var(--color-sidebar);color:#f1f5f9;border-radius:10px;padding:10px 16px;font-size:var(--fs-md);box-shadow:var(--shadow-pop);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;max-width:min(92vw,620px)}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#toast .icon{color:#60a5fa}
+/* ══ 响应式（§7：1280 / 1024 两档） ══ */
+@media (max-width:1279px){
+  :root{--sbw:62px}
+  .logo{padding:14px 10px 10px;justify-content:center}
+  .logo .mark{margin:0}
+  .logo span,.nav .tlabel .lbl,.nav .tsub,.nav .tgl,.nav .count,.nav .ms,.sb-foot{display:none}
+  .nav .titem{margin:2px 0}
+  .nav .trow{justify-content:center}
+  .nav .tlabel{padding:11px 0;justify-content:center;flex:none}
+  .subnav,.content{padding-left:16px;padding-right:16px}
+  .topbar{padding:0 16px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:1023px){
+  .sidebar{transform:translateX(-100%)}
+  body.sb-open .sidebar{transform:none;box-shadow:0 0 0 100vmax rgba(15,23,42,.35)}
+  .main{margin-left:0}
+  .hamburger{display:inline-flex}
+  .grid2,.grid-2-1{grid-template-columns:1fr}
+  .kv{grid-template-columns:120px 1fr}
+  .search{display:none}
+  .stats{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-target" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></g></symbol>
+    <symbol id="ic-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></g></symbol>
+    <symbol id="ic-folder" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g></symbol>
+    <symbol id="ic-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></g></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/><path d="M9 11.5l2 2 4-4.5"/></g></symbol>
+    <symbol id="ic-rocket" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15c-1.2 2.6-1.2 4.2-1.2 4.2s1.6 0 4.2-1.2"/><path d="M9.5 13.5 11 15l3.5-3.5c4-4 5-8.5 5-8.5s-4.5 1-8.5 5L7.5 11.5 9 13"/><path d="M9.5 13.5 7 14l-1.5 1.5"/><circle cx="14.5" cy="9.5" r="1.3"/></g></symbol>
+    <symbol id="ic-approve" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 12.5l2 2 4-5"/></g></symbol>
+    <symbol id="ic-archive" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="5" width="18" height="4" rx="1"/><path d="M5 9v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></g></symbol>
+    <symbol id="ic-chat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4z"/></g></symbol>
+    <symbol id="ic-grid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></g></symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 4v5m0 5v6M12 4v2m0 5v11M19 4v10m0 5v1"/><circle cx="5" cy="11" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="19" cy="16" r="2"/></g></symbol>
+    <symbol id="ic-bell" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></g></symbol>
+    <symbol id="ic-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 9.5v5"/><path d="M12 17.2v.1"/></g></symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g></symbol>
+    <symbol id="ic-chev" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></g></symbol>
+    <symbol id="ic-ext" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M9 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></g></symbol>
+    <symbol id="ic-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></g></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></g></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></g></symbol>
+    <symbol id="ic-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7l1.5-2h3L15 7"/></g></symbol>
+    <symbol id="ic-video" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></g></symbol>
+    <symbol id="ic-activity" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></g></symbol>
+    <symbol id="ic-zap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></g></symbol>
+    <symbol id="ic-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></g></symbol>
+    <symbol id="ic-branch" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7"/><path d="M18 10.5c0 4-6 3-9 5"/></g></symbol>
+    <symbol id="ic-db" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="8" ry="2.5"/><path d="M4 5v14c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V5"/><path d="M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5"/></g></symbol>
+    <symbol id="ic-pause" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="8" y="5" width="3" height="14" rx="1"/><rect x="13" y="5" width="3" height="14" rx="1"/></g></symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M5 19h14"/></g></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></g></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g></symbol>
+    <symbol id="ic-terminal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5"/><path d="M12 17h7"/></g></symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></g></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></g></symbol>
+    <symbol id="ic-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8v.1"/></g></symbol>
+    <symbol id="ic-dollar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 3v18"/><path d="M16.5 7.5c0-2-2-3-4.5-3s-4.5 1-4.5 3 1.5 3 4.5 3.5 4.5 1.5 4.5 3.5-2 3-4.5 3-4.5-1-4.5-3"/></g></symbol>
+  </defs>
+</svg>
+
+<!-- ═══ 全局 AI 降级横幅（§6.8：任一层降级不静默；演示开关在顶栏） ═══ -->
+<div class="ai-banner" role="status">
+  <svg class="icon"><use href="#ic-alert"/></svg>
+  <b>AI 降级中：</b>归因 / 建议增强当前为规则聚类；生成（A1）入口置灰、自愈入口不出现；平台功能（执行 / 报告 / 门禁）不受影响。
+  <span class="muted" style="margin-left:auto;font-size:11px">演示开关 · 降级顺序由服务端决定（12-PRD §7.2）</span>
+</div>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="mark"><svg class="icon"><use href="#ic-target"/></svg></div>
+    <span>HuntAI Test<small>企业内部 AI 测试平台</small></span>
+  </div>
+  <nav class="nav" aria-label="一级导航">
+    <div class="titem">
+      <div class="trow" data-row="p01"><a class="tlabel" href="#/p01" data-goto="p01"><svg class="icon"><use href="#ic-home"/></svg><span class="lbl">工作台</span></a></div>
+    </div>
+    <div class="titem open" data-g="project">
+      <div class="trow" data-row="g-project"><a class="tlabel" href="#/p02" data-goto="p02" data-group="project"><svg class="icon"><use href="#ic-folder"/></svg><span class="lbl">项目</span></a><button class="tgl" aria-label="展开/收起 项目"><svg class="icon"><use href="#ic-chev"/></svg></button></div>
+      <div class="tsub">
+        <a href="#/p02" data-goto="p02">总览 <span class="mono muted">P02</span></a>
+        <a href="#/p05" data-goto="p05">用例 <span class="mono muted">P05</span></a>
+        <a href="#/p06" data-goto="p06">计划 <span class="mono muted">P06</span></a>
+        <a href="#/p09" data-goto="p09">执行 <span class="mono muted">P09 · 过滤视图</span></a>
+        <a href="#/p15" data-goto="p15">环境 <span class="mono muted">P15 · 双入口</span></a>
+        <a href="#/p03" data-goto="p03">集成 <span class="mono muted">P03</span></a>
+        <a href="#/p04" data-goto="p04">设置 <span class="mono muted">P04</span></a>
+      </div>
+    </div>
+    <div class="titem open" data-g="testcenter">
+      <div class="trow" data-row="g-testcenter"><a class="tlabel" href="#/p08" data-goto="p08" data-group="testcenter"><svg class="icon"><use href="#ic-play"/></svg><span class="lbl">测试中心</span></a><button class="tgl" aria-label="展开/收起 测试中心"><svg class="icon"><use href="#ic-chev"/></svg></button></div>
+      <div class="tsub">
+        <a href="#/p08" data-goto="p08">发起执行 <span class="mono muted">P08</span></a>
+        <a href="#/p09" data-goto="p09">TestRun 列表 <span class="mono muted">P09</span></a>
+        <a href="#/p16" data-goto="p16">性能压测 <span class="mono muted">P16</span></a>
+        <div class="note">Agent 任务详情（P14）由 agent 型 run 详情进入</div>
+      </div>
+    </div>
+    <div class="titem" data-g="gates">
+      <div class="trow" data-row="g-gates"><a class="tlabel" href="#/p11" data-goto="p11" data-group="gates"><svg class="icon"><use href="#ic-shield"/></svg><span class="lbl">门禁</span></a><button class="tgl" aria-label="展开/收起 门禁"><svg class="icon"><use href="#ic-chev"/></svg></button></div>
+      <div class="tsub">
+        <a href="#/p11" data-goto="p11">质量门禁策略 <span class="mono muted">P11</span></a>
+        <a href="#/p12" data-goto="p12">评估历史 <span class="mono muted">P12</span></a>
+      </div>
+    </div>
+    <div class="titem">
+      <div class="trow" data-row="p17"><a class="tlabel" href="#/p17" data-goto="p17"><svg class="icon"><use href="#ic-rocket"/></svg><span class="lbl">发布</span></a></div>
+    </div>
+    <div class="titem">
+      <div class="trow" data-row="p10"><a class="tlabel" href="#/p10" data-goto="p10"><svg class="icon"><use href="#ic-approve"/></svg><span class="lbl">审批</span></a><span class="count">3</span></div>
+    </div>
+    <div class="titem">
+      <div class="trow" data-row="p20"><a class="tlabel" href="#/p20" data-goto="p20"><svg class="icon"><use href="#ic-archive"/></svg><span class="lbl">证据</span></a></div>
+    </div>
+    <div class="titem">
+      <div class="trow" data-row="p18"><a class="tlabel" href="#/p18" data-goto="p18"><svg class="icon"><use href="#ic-chat"/></svg><span class="lbl">助手</span></a><span class="ms">M3+</span></div>
+    </div>
+    <div class="titem">
+      <div class="trow" data-row="p19"><a class="tlabel" href="#/p19" data-goto="p19"><svg class="icon"><use href="#ic-grid"/></svg><span class="lbl">技能</span></a><span class="ms">M4</span></div>
+    </div>
+    <div class="titem open" data-g="admin">
+      <div class="trow" data-row="g-admin"><a class="tlabel" href="#/p21" data-goto="p21" data-group="admin"><svg class="icon"><use href="#ic-sliders"/></svg><span class="lbl">管理后台</span></a><button class="tgl" aria-label="展开/收起 管理后台"><svg class="icon"><use href="#ic-chev"/></svg></button></div>
+      <div class="tsub">
+        <a href="#/p21" data-goto="p21">AI 成本看板 <span class="mono muted">P21</span></a>
+        <a href="#/p22" data-goto="p22">模型路由 <span class="mono muted">P22</span></a>
+        <a href="#/p23" data-goto="p23">AI 开关与降级 <span class="mono muted">P23</span></a>
+        <a href="#/p24" data-goto="p24">审计检索 <span class="mono muted">P24</span></a>
+        <a href="#/p25" data-goto="p25">集成中心 <span class="mono muted">P25</span></a>
+      </div>
+    </div>
+  </nav>
+  <div class="sb-foot">
+    <span>租户：电商平台部（合成）</span>
+    <span class="mono">prototype v0.3 · 2026-10-26</span>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="打开导航"><svg class="icon icon-lg"><use href="#ic-menu"/></svg></button>
+    <div class="crumb">
+      <span class="g" id="crumb-group" hidden></span>
+      <svg class="icon" id="crumb-sep" hidden><use href="#ic-chev"/></svg>
+      <span id="top-title">工作台</span>
+    </div>
+    <label class="search">
+      <svg class="icon"><use href="#ic-search"/></svg>
+      <input id="global-search" type="search" placeholder="搜索 run / 用例 / 审批…">
+      <kbd>⏎ 原型占位</kbd>
+    </label>
+    <span class="spacer"></span>
+    <button class="ghost-btn" id="ai-toggle" aria-pressed="false" title="演示：切换 AI 降级态">
+      <svg class="icon"><use href="#ic-alert"/></svg>模拟 AI 降级
+    </button>
+    <a class="ghost-btn" href="#/p10" style="text-decoration:none;color:var(--color-secondary-foreground)">
+      <svg class="icon"><use href="#ic-approve"/></svg>审批待办<b class="badge b-danger">3</b>
+    </a>
+    <button class="ghost-btn" id="bell" aria-label="通知入口">
+      <svg class="icon"><use href="#ic-bell"/></svg><b class="badge b-warn">2</b>
+    </button>
+    <span class="ghost-btn" style="cursor:default"><svg class="icon"><use href="#ic-lock"/></svg>李四 · 测试工程师（合成）</span>
+  </header>
+
+  <main class="content">
+
+  <!-- ═══════════ P01 工作台 ═══════════ -->
+  <section class="page" id="page-p01" data-page="p01" data-title="工作台" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/</code> · M0 · C1 支撑 · C2 ②2 · C3 ②7 · C4 ②1 · US-11 · 组件：待审批列表、进行中 TestRun、门禁异常、部门预算余量 · 特殊态：临期/过期审批高亮、等待态滞留时长 · 统计带为四区块计数呈现（页内锚点，非新跳转）</div>
+    <header class="ph"><h1>工作台</h1><span class="badge b-outline">2026-10-26 · 周一（合成）</span><span class="actions"><a class="btn sec" href="#/p08"><svg class="icon"><use href="#ic-play"/></svg>发起执行</a><a class="btn" href="#/p10"><svg class="icon"><use href="#ic-approve"/></svg>处理审批</a></span></header>
+
+    <div class="stats">
+      <div class="stat" data-scroll="c-approvals" role="button" tabindex="0"><div><div class="n n-danger">3</div><div class="lb">待审批 · 1 临期 / 1 已过期</div></div><span class="tile t-red"><svg class="icon"><use href="#ic-approve"/></svg></span></div>
+      <div class="stat" data-scroll="c-runs" role="button" tabindex="0"><div><div class="n n-blue">3</div><div class="lb">进行中 TestRun · 2 等待态滞留</div></div><span class="tile t-blue"><svg class="icon"><use href="#ic-play"/></svg></span></div>
+      <div class="stat" data-scroll="c-gates" role="button" tabindex="0"><div><div class="n n-warn">2</div><div class="lb">门禁异常 · 1 回写失败</div></div><span class="tile t-amber"><svg class="icon"><use href="#ic-shield"/></svg></span></div>
+      <div class="stat" data-scroll="c-budget" role="button" tabindex="0"><div><div class="n n-ok">32%</div><div class="lb">部门预算余量（综合）</div></div><span class="tile t-green"><svg class="icon"><use href="#ic-dollar"/></svg></span></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card" id="c-approvals">
+        <div class="chead"><span class="tile t-red"><svg class="icon"><use href="#ic-approve"/></svg></span><h2>待审批列表</h2><span class="meta"><span class="badge b-danger">3</span><span class="badge b-muted">C2 §3.4</span></span></div>
+        <table class="table">
+          <thead><tr><th>动作 / 目标资源</th><th>风险</th><th>发起人</th><th>滞留</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>执行用例组</b> <span class="mono muted">order-center · suite:回归-2026W44</span><br><span class="badge b-warn">临期（余 3.2h）</span></td>
+              <td><span class="risk rk3"><i></i>L3</span></td><td>王五（合成）</td><td><span class="badge b-warn"><svg class="icon"><use href="#ic-clock"/></svg>4.8h</span></td>
+              <td><a href="#/p10">去审批 →</a></td>
+            </tr>
+            <tr>
+              <td><b>heal_apply 定位器自愈</b> <span class="mono muted">checkout.spec.ts · locator:btn-pay</span><br><span class="badge b-danger">已过期 1.4h · 已通知备审批人</span></td>
+              <td><span class="risk rk2"><i></i>L2</span></td><td>agent（A4）</td><td><span class="badge b-danger"><svg class="icon"><use href="#ic-clock"/></svg>26h</span></td>
+              <td><a href="#/p10">去审批 →</a></td>
+            </tr>
+            <tr>
+              <td><b>gate_waiver 豁免</b> <span class="mono muted">release:2026.10 · p95 门禁</span></td>
+              <td><span class="risk rk3"><i></i>L3</span></td><td>赵六（合成）</td><td>0.6h</td><td><a href="#/p10">去审批 →</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" id="c-runs">
+        <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-play"/></svg></span><h2>进行中 TestRun</h2><span class="meta"><span class="badge b-muted">等待态滞留持续可见 · 05 §2.2 裁定 5</span></span></div>
+        <table class="table">
+          <thead><tr><th>Run</th><th>来源</th><th>状态</th><th>滞留 / 进度</th></tr></thead>
+          <tbody>
+            <tr><td class="num"><a href="#/p09-run">run-a3f2</a></td><td><span class="badge b-primary"><svg class="icon"><use href="#ic-zap"/></svg>agent · 不进门禁</span></td><td><span class="badge b-warn">WAITING_APPROVAL</span></td><td><span class="badge b-warn">滞留 2.1h</span> · L2+ 动作待批</td></tr>
+            <tr><td class="num"><a href="#/p09">run-b7c1</a></td><td><span class="badge b-info"><svg class="icon"><use href="#ic-branch"/></svg>external_ci</span></td><td><span class="badge b-warn">WAITING_EXTERNAL</span></td><td><span class="badge b-warn">滞留 26h</span> · 超阈值已告警</td></tr>
+            <tr><td class="num"><a href="#/p09">run-c9d0</a></td><td><span class="badge b-muted"><svg class="icon"><use href="#ic-terminal"/></svg>script</span></td><td><span class="badge b-info">RUNNING</span></td><td>74% · 38/52 用例完成</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" id="c-gates">
+        <div class="chead"><span class="tile t-amber"><svg class="icon"><use href="#ic-shield"/></svg></span><h2>门禁异常</h2></div>
+        <table class="table">
+          <thead><tr><th>Run / 策略</th><th>结果</th><th>Check Run 回写</th></tr></thead>
+          <tbody>
+            <tr><td class="num"><a href="#/p09">run-d4e5</a> · api 成功率 ≥95%</td><td><span class="badge b-danger">BLOCKED · 93.2%</span></td><td><span class="badge b-danger">回写失败 · 告警（FR-13）</span></td></tr>
+            <tr><td class="num"><a href="#/p09">run-e8f1</a> · perf p95 &lt; 800ms</td><td><span class="badge b-warn">WARN · p95=862ms</span></td><td><span class="badge b-success">已回写</span></td></tr>
+          </tbody>
+        </table>
+        <p class="card-sub">点击行进入 <a href="#/p09">P09 TestRun 列表</a>；评估明细见 <a href="#/p12">P12 门禁评估历史</a></p>
+      </div>
+
+      <div class="card" id="c-budget">
+        <div class="chead"><span class="tile t-green"><svg class="icon"><use href="#ic-dollar"/></svg></span><h2>部门预算余量（本周期）</h2></div>
+        <div style="display:flex;flex-direction:column;gap:13px;font-size:var(--fs-sm)">
+          <div><div style="display:flex;justify-content:space-between"><span>AI Token（电商平台部）</span><span class="num">68% · 6.8M / 10M</span></div><div class="bar" style="margin-top:5px"><i class="warn" style="width:68%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span>Agent 步数配额</span><span class="num">41% · 4.1k / 10k</span></div><div class="bar" style="margin-top:5px"><i style="width:41%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span>压测 VU·h</span><span class="num">12% · 120 / 1000</span></div><div class="bar" style="margin-top:5px"><i class="ok" style="width:12%"></i></div></div>
+        </div>
+        <p class="card-sub">成本明细见 <a href="#/p21">P21 AI 成本看板</a>；路由与降级见 <a href="#/p23">P23 AI 能力开关</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P02 项目总览 ═══════════ -->
+  <section class="page" id="page-p02" data-page="p02" data-title="项目总览" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/projects/:projectId</code> · M0 · C1 ②0 · US-11 · 特殊点：工具连接状态确认后进入用例生产（C1 ②0–1 → P05）</div>
+    <header class="ph"><h1>项目总览 · 订单中心</h1><span class="badge b-muted">project: order-center（合成）</span></header>
+    <div class="stack">
+      <div class="grid-2-1">
+        <div class="card">
+          <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-branch"/></svg></span><h2>工具连接状态</h2><span class="meta"><span class="badge b-warn">1 项需处理</span></span></div>
+          <div class="env-cards">
+            <div class="env-card sel" style="cursor:default"><svg class="icon" style="color:var(--color-success)"><use href="#ic-check"/></svg><div><b>GitHub</b><div class="card-sub" style="margin:0">org/demo-shop · 2 仓库已同步</div></div><span class="badge b-success" style="margin-left:auto">已连接</span></div>
+            <div class="env-card sel" style="cursor:default"><svg class="icon" style="color:var(--color-success)"><use href="#ic-check"/></svg><div><b>Jira</b><div class="card-sub" style="margin:0">缺陷写入 DEMO 空间</div></div><span class="badge b-success" style="margin-left:auto">已连接</span></div>
+            <div class="env-card" style="cursor:default;border-color:#fde68a;background:var(--color-warning-foreground)"><svg class="icon" style="color:var(--color-warning)"><use href="#ic-alert"/></svg><div><b>Jenkins（CI）</b><div class="card-sub" style="margin:0">webhook 验签失败 2 次 · 去 <a href="#/p25">集成中心</a> 排查</div></div><span class="badge b-warn" style="margin-left:auto">DEGRADED</span></div>
+          </div>
+          <p class="card-sub">全部就绪后进入用例生产（<a href="#/p05">P05 用例库</a>，C1 ②0–1）。</p>
+        </div>
+        <div class="card">
+          <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-info"/></svg></span><h2>Jira 映射</h2></div>
+          <dl class="kv">
+            <dt>缺陷项目</dt><dd><span class="mono">DEMO</span>（服务端配置）</dd>
+            <dt>缺陷类型</dt><dd>Bug</dd>
+            <dt>聚类 → 缺陷</dt><dd>簇一键建 Jira（P09 详情）</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-activity"/></svg></span><h2>最近活动</h2></div>
+        <ul class="tl">
+          <li><div class="tt">run-a3f2 进入 WAITING_APPROVAL <span class="badge b-primary">agent</span></div><div class="td">L2+ 动作待批 · 2.1h 前 · <a href="#/p09-run">查看</a></div></li>
+          <li><div class="tt">A1 生成 24 条用例，partial 失败 3 条</div><div class="td">失败明细见 <a href="#/p07">生成审阅页</a> · 昨天</div></li>
+          <li><div class="tt">环境 <span class="mono">env-stg-01</span> 健康检查失败 → DEGRADED</div><div class="td">3 天前 · <a href="#/p15">环境管理</a></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P03 集成（占位） ═══════════ -->
+  <section class="page" id="page-p03" data-page="p03" data-title="集成（项目级）" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/projects/:projectId/integrations</code> · M2 · US-06、FR-13/18 · 系统侧配置承接（ci_webhook 触发绑定，无页面流出场）</div>
+    <header class="ph"><h1>集成</h1><span class="badge b-muted">M2</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-branch"/></svg></div>
+      <h2>本页占位</h2>
+      <p class="muted" style="font-size:var(--fs-md)">轻量原型未展开本页线框；页面集合与职责以 <a href="#" onclick="toast('演示：frontend_design_spec §2 为页面权威');return false">frontend_design_spec §2</a> 为准。规范登记要点：</p>
+      <ul>
+        <li>ci_webhook 触发绑定：仓库 / 分支 ↔ 测试计划（实现见 P25 集成中心 / API-167）</li>
+        <li>无页面流出场：本页为配置承接页</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══════════ P04 项目设置（占位） ═══════════ -->
+  <section class="page" id="page-p04" data-page="p04" data-title="项目设置" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/projects/:projectId/settings</code> · M0 · US-11、FR-01</div>
+    <header class="ph"><h1>项目设置</h1><span class="badge b-muted">M0</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-sliders"/></svg></div>
+      <h2>本页占位</h2>
+      <p class="muted" style="font-size:var(--fs-md)">轻量原型未展开本页线框。要点：成员与角色（FR-01）、项目级配置；租户隔离由服务端强制。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P05 用例库 ═══════════ -->
+  <section class="page" id="page-p05" data-page="p05" data-title="用例库" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/projects/:projectId/cases</code> · M1 · C1 ②1/3 · C3 ②1/6 · C4 ②7 · US-01/13 · 特殊态：失效用例不可执行（validity=invalid，系统标记可逆）、<code>ai-generated</code> 标签筛选 · 列表筛选/排序/分页进 URL</div>
+    <header class="ph"><h1>用例库 · 订单中心</h1><span class="badge b-muted">25 条（合成）</span><span class="actions"><a class="btn sec" href="#/p07"><svg class="icon"><use href="#ic-zap"/></svg>导入 / AI 生成</a></span></header>
+    <div class="card">
+      <div class="chead" style="border-bottom:none;padding-bottom:0;margin-bottom:10px;flex-wrap:wrap">
+        <h2>筛选<span class="hint" style="font-weight:400;color:var(--color-muted-foreground);font-size:11px">筛选/排序/分页一律同步 URL query</span></h2>
+        <span class="meta" style="flex-wrap:wrap;justify-content:flex-end;flex:1">
+          <label class="field" style="margin:0;width:180px"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">搜索</span><input type="search" placeholder="搜索用例名称 / 编号"></label>
+          <select style="border:1px solid var(--color-input);border-radius:var(--radius-sm);padding:6px 8px;font:inherit;font-size:var(--fs-sm);background:#fff"><option>类型：全部</option><option>类型：api</option><option>类型：web</option><option>类型：performance</option></select>
+          <select style="border:1px solid var(--color-input);border-radius:var(--radius-sm);padding:6px 8px;font:inherit;font-size:var(--fs-sm);background:#fff"><option>状态：全部</option><option>DRAFT</option><option>PENDING_REVIEW</option><option>ACTIVE</option></select>
+          <select style="border:1px solid var(--color-input);border-radius:var(--radius-sm);padding:6px 8px;font:inherit;font-size:var(--fs-sm);background:#fff"><option>有效性：全部</option><option>valid</option><option>invalid（失效）</option></select>
+          <span style="display:flex;gap:6px"><span class="badge b-primary" style="cursor:pointer" onclick="toast('演示：ai-generated 标签筛选（C1 ④#9）')">ai-generated ×</span><span class="badge b-muted" style="cursor:pointer">regression</span></span>
+        </span>
+      </div>
+      <table class="table">
+        <thead><tr><th>用例</th><th>类型</th><th>状态</th><th>有效性</th><th>来源</th><th>更新</th><th style="width:160px">操作</th></tr></thead>
+        <tbody>
+          <tr><td><b>下单主流程（正常）</b><br><span class="mono muted">case-001 · order/create/success</span></td><td><span class="badge b-info">api</span></td><td><span class="badge b-success">ACTIVE</span></td><td><span class="badge b-success">valid</span></td><td><span class="badge b-primary">ai-generated</span></td><td class="num">10-24</td><td><a href="#/p08">发起执行</a> · <a href="#" onclick="toast('演示：P13 用例详情当前仅 Web 域定义结构（缺口 G2）');return false">详情</a></td></tr>
+          <tr><td><b>支付超时重试</b><br><span class="mono muted">case-014 · pay/timeout/retry</span></td><td><span class="badge b-info">api</span></td><td><span class="badge b-success">ACTIVE</span></td><td><span class="badge b-success">valid</span></td><td><span class="badge b-muted">手工</span></td><td class="num">10-22</td><td><a href="#/p08">发起执行</a> · 详情</td></tr>
+          <tr><td><b>结账页 · 购物车结算</b><br><span class="mono muted">case-021 · checkout.spec.ts</span></td><td><span class="badge b-primary">web</span></td><td><span class="badge b-success">ACTIVE</span></td><td><span class="badge b-success">valid</span></td><td><span class="badge b-primary">ai-generated</span></td><td class="num">10-24</td><td><a href="#/p08">发起执行</a> · <a href="#/p13">详情</a></td></tr>
+          <tr><td><b>订单列表分页</b><br><span class="mono muted">case-033 · order/list/page</span></td><td><span class="badge b-info">api</span></td><td><span class="badge b-muted">PENDING_REVIEW</span></td><td><span class="badge b-success">valid</span></td><td><span class="badge b-primary">ai-generated</span></td><td class="num">10-25</td><td><span class="btn sec sm" aria-disabled="true" title="PENDING_REVIEW 不可执行">发起执行</span></td></tr>
+          <tr style="background:#fff7f7"><td><b>库存扣减并发</b><br><span class="mono muted">case-017 · stock/deduct/concurrent</span></td><td><span class="badge b-info">api</span></td><td><span class="badge b-success">ACTIVE</span></td><td><span class="badge b-danger">invalid · 失效（系统标记，可逆）</span></td><td><span class="badge b-muted">手工</span></td><td class="num">10-20</td><td><span class="btn sec sm" aria-disabled="true" title="失效用例不可执行（C1 ④#9）">发起执行</span> · <a href="#" onclick="toast('演示：恢复 valid 需人工确认（系统标记可逆）');return false">恢复</a></td></tr>
+          <tr><td><b>下单压测 · 峰值 500 VU</b><br><span class="mono muted">case-040 · perf/order/peak</span></td><td><span class="badge b-muted">performance</span></td><td><span class="badge b-success">ACTIVE</span></td><td><span class="badge b-success">valid</span></td><td><span class="badge b-muted">手工</span></td><td class="num">10-18</td><td><a href="#/p16">去压测</a></td></tr>
+        </tbody>
+      </table>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;font-size:var(--fs-sm);color:var(--color-muted-foreground)">
+        <span class="mono">page=1/3 · 25 条 · sort=updated_desc（进 URL）</span>
+        <span style="flex:1"></span><button class="ghost-btn">上一页</button><button class="ghost-btn">下一页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P06 测试计划（占位） ═══════════ -->
+  <section class="page" id="page-p06" data-page="p06" data-title="测试计划" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/projects/:projectId/plans</code> · M1 · US-03/09、FR-15 · 定时绑定 schedule（cron/时区 TBD，禁止写默认频率）</div>
+    <header class="ph"><h1>测试计划</h1><span class="badge b-muted">M1</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-file"/></svg></div>
+      <h2>本页占位</h2>
+      <p class="muted" style="font-size:var(--fs-md)">轻量原型未展开本页线框。要点：计划-用例组编排、定时绑定（schedule_binding 可空 jsonb，cron/时区 TBD）、证据汇聚输入（FR-15）。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P07 生成审阅页（中等） ═══════════ -->
+  <section class="page" id="page-p07" data-page="p07" data-title="生成审阅页" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>…/cases/generation-review</code> · M1 · C1 ②2 · US-01、FR-05 · 特殊态：partial 失败列表（endpoint + reason，来自 A1 failed_items，<b>禁止静默丢弃</b>）；AI 降级时 A1 入口置灰但导入本身可用</div>
+    <header class="ph"><h1>生成审阅 · A1 批次 <span class="mono muted" style="font-size:var(--fs-md)">a1-20261026-01</span></h1><span class="actions"><a class="btn" href="#/p05">采纳 → 提交评审</a><button class="btn sec">编辑保存草稿</button></span></header>
+    <div class="stack">
+      <div class="card">
+        <div class="chead"><span class="tile t-green"><svg class="icon"><use href="#ic-check"/></svg></span><h2>生成结果预览</h2><span class="meta"><span class="badge b-success">21 条可采纳</span><span class="badge b-danger">3 条失败（partial）</span></span></div>
+        <table class="table">
+          <thead><tr><th>来源端点</th><th>生成用例</th><th>建议</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">POST /order/create</td><td>正向 + 参数边界 ×3</td><td><span class="badge b-success">可采纳</span></td></tr>
+            <tr><td class="mono">GET /order/{id}</td><td>鉴权缺失 / 越权 ×2</td><td><span class="badge b-success">可采纳</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="border-color:#fecaca">
+        <div class="chead"><span class="tile t-red"><svg class="icon"><use href="#ic-alert"/></svg></span><h2 style="color:var(--color-destructive)">partial 生成失败列表（endpoint + reason）</h2><span class="meta"><span class="badge b-muted">来自 A1 failed_items · 禁止静默丢弃</span></span></div>
+        <table class="table">
+          <tbody>
+            <tr><td class="mono">POST /pay/refund</td><td class="muted">reason：schema 中 body 为 oneOf 联合类型，A1 无法确定性展开（G2 类缺口）</td><td><button class="ghost-btn">导出为 TODO</button></td></tr>
+            <tr><td class="mono">WS /order/notify</td><td class="muted">reason：WebSocket 协议不在 A1 支持域</td><td><button class="ghost-btn">导出为 TODO</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-zap"/></svg></span><h2>导入 / 生成入口</h2><span class="meta"><span class="badge b-muted">降级仅影响 AI，不影响导入</span></span></div>
+        <p style="font-size:var(--fs-md);display:flex;gap:8px;flex-wrap:wrap;margin:0"><button class="btn ai-dep" onclick="toast('演示：A1 入口 — AI 降级时置灰但导入本身可用（C1 ④#1–2）')">AI 生成（A1）</button>
+        <button class="btn sec" onclick="toast('演示：导入 OpenAPI / Postman / curl 本身不受 AI 降级影响')">导入 OpenAPI</button>
+        <button class="btn sec" onclick="toast('演示：导入本身可用')">导入 Postman / curl</button></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P08 执行发起页（向导轨 · 三层顺序冻结） ═══════════ -->
+  <section class="page" id="page-p08" data-page="p08" data-title="执行发起页" data-subnav="testcenter" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/test-center/kickoff</code> · M1 · C1 ②4 · C3 ②2 · US-01/02/14 · 特殊态：表单即时校验（未提交可见）；模式 × 环境联动置灰；AI 降级时 Agent 模式提示「任务排队不启动」</div>
+    <header class="ph"><h1>执行发起</h1><span class="badge b-muted">引用用例 case-014 · pay/timeout/retry（params_schema_ref 动态生成）</span></header>
+
+    <div class="card">
+      <div class="layer">
+        <div class="ln" id="ln-1">1</div>
+        <h2>第一层 · 模式选择<span class="badge b-muted">顺序不可调换（05 §4.3 约束 3）</span></h2>
+        <div class="env-cards" role="radiogroup" aria-label="模式选择" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+          <div class="env-card" id="mode-script" role="radio" aria-checked="true" tabindex="0"><svg class="icon"><use href="#ic-terminal"/></svg><div><b>Script 模式</b><div class="card-sub" style="margin:0">确定性执行 · 结果进门禁评估</div></div><span class="badge b-success" style="margin-left:auto" id="mk-script">已选</span></div>
+          <div class="env-card" id="mode-agent" role="radio" aria-checked="false" tabindex="0"><svg class="icon"><use href="#ic-zap"/></svg><div><b>Agent 模式</b><div class="card-sub" style="margin:2px 0 0">受限说明（四条，选定后展示）：</div><ul style="margin:4px 0 0;padding-left:16px;font-size:var(--fs-xs);color:var(--color-secondary-foreground);display:none" id="agent-notes"><li>Agent 型 run <b>不进门禁</b>评估</li><li>轨迹含截图与工具调用，可随时终止</li><li>终态可能 incomplete（人工确认归属）</li><li>AI 降级时仅提示「任务排队不启动」</li></ul></div><span class="badge b-muted" style="margin-left:auto" id="mk-agent">未选</span></div>
+        </div>
+        <div class="warnline" id="degrade-agent-note" style="display:none;margin-top:10px"><svg class="icon"><use href="#ic-alert"/></svg><span>AI 降级中：Agent 模式「任务排队不启动」提示（12-PRD §3.1 A8 fallback）——建议改用 Script 模式。</span></div>
+      </div>
+
+      <div class="layer">
+        <div class="ln" id="ln-2">2</div>
+        <h2>第二层 · 环境选择<span class="badge b-muted">仅 ACTIVE 可选；DEGRADED / DISABLED / PENDING_APPROVAL 置灰并显示原因</span></h2>
+        <div class="env-cards">
+          <div class="env-card env-opt sel" data-env="staging" tabindex="0"><svg class="icon" style="color:var(--color-success)"><use href="#ic-check"/></svg><div><b>staging · env-stg-01</b><div class="card-sub" style="margin:0">health=ACTIVE · 容量 80% · 配额余 41%</div></div><span class="badge b-success" style="margin-left:auto">ACTIVE</span></div>
+          <div class="env-card env-opt" data-env="ext-ci" tabindex="0"><svg class="icon" style="color:var(--color-info)"><use href="#ic-branch"/></svg><div><b>外部 CI · Jenkins</b><div class="card-sub" style="margin:0">external_ci 型 · webhook 触发（验证密钥经 env 注入）</div></div><span class="badge b-info" style="margin-left:auto">ACTIVE</span><span class="badge b-muted" id="ext-ci-lock" hidden>选 Agent 时置灰（一期不支持）</span></div>
+          <div class="env-card lock" style="cursor:not-allowed"><svg class="icon" style="color:var(--color-warning)"><use href="#ic-alert"/></svg><div><b>staging · env-stg-02</b><div class="card-sub" style="margin:0">健康检查失败（C3 ②2.2）· <a href="#/p15">去环境管理</a></div></div><span class="badge b-warn" style="margin-left:auto">DEGRADED · 不可选</span></div>
+          <div class="env-card lock" style="cursor:not-allowed"><svg class="icon" style="color:var(--color-muted-foreground)"><use href="#ic-lock"/></svg><div><b>preprod · env-pp-01</b><div class="card-sub" style="margin:0">注册审批中（C2 ②1）</div></div><span class="badge b-muted" style="margin-left:auto">PENDING_APPROVAL</span></div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="ln" id="ln-3">3</div>
+        <h2>第三层 · 参数表单<span class="badge b-muted">params_schema_ref 动态生成 + 定时配置</span></h2>
+        <div class="grid2" style="max-width:760px">
+          <label class="field"><span>环境变量组（job_schema 双层变量校验）</span><select><option>group: 订单回归（默认）</option><option>group: 空跑（dry-run）</option></select><span class="hint">服务端 VALIDATING：Job Schema / 双层变量 / Job 存在性</span></label>
+          <label class="field" id="f-timeout"><span>单步超时（秒，必填）</span><input id="in-timeout" type="number" min="1" placeholder="如 30"><span class="ferr">未填：即时校验错误（未提交即可见，C3 ④）</span></label>
+          <label class="field"><span>并发数</span><input type="number" value="4" min="1"></label>
+          <div class="field"><span>定时配置（可选）</span>
+            <details class="fold"><summary>展开定时（schedule_binding：cron/时区 <b>[TBD-BIZ]</b>，禁止写默认频率）</summary>
+              <label class="field" style="margin-top:8px"><span>cron 表达式</span><input placeholder="待裁定（TBD）"><span class="hint">时区：待裁定；绑定持久化于 test_plans.schedule_binding</span></label>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="ops">
+        <button class="btn lg" id="btn-kickoff"><svg class="icon"><use href="#ic-play"/></svg>发起执行</button>
+        <span class="muted" style="font-size:var(--fs-xs)">成功 → 创建 TestRun（PENDING，冻结 snapshot）并跳转 P09 详情（C3 ②2–3）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P09 TestRun 列表 ═══════════ -->
+  <section class="page" id="page-p09" data-page="p09" data-title="TestRun 列表" data-subnav="testcenter" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/test-center/runs</code>（项目树「执行」= 本页项目过滤视图，缺口 G1） · M1 · C1 ②5/9 · C2 ②1 · C3 ②3 · C4 ②2–8 · 特殊态：SSE 进度流、超大报告解析进度与「部分解析失败」、WAITING_EXTERNAL 徽标与滞留时长、execution_source 徽标、incomplete 标记</div>
+    <header class="ph"><h1>TestRun 列表</h1><span class="actions"><button class="ghost-btn" onclick="toast('演示：无 SSE 通道时提供手动刷新（§6.14）；自动轮询策略归 API 契约（缺口 G3）')"><svg class="icon"><use href="#ic-refresh"/></svg>手动刷新</button></span></header>
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>Run</th><th>来源</th><th>触发</th><th>状态</th><th>门禁</th><th>开始 / 滞留</th></tr></thead>
+        <tbody>
+          <tr><td class="num"><a href="#/p09-run">run-a3f2</a></td><td><span class="badge b-primary"><svg class="icon"><use href="#ic-zap"/></svg>agent · 不进门禁</span></td><td>manual</td><td><span class="badge b-warn">WAITING_APPROVAL</span></td><td class="muted">—（agent 型不产生 GateEvaluation）</td><td class="num">10-26 08:14 · 滞留 2.1h</td></tr>
+          <tr><td class="num"><a href="#/p09-run">run-b7c1</a></td><td><span class="badge b-info"><svg class="icon"><use href="#ic-branch"/></svg>external_ci · CI 归一化</span></td><td>ci_webhook</td><td><span class="badge b-warn">WAITING_EXTERNAL</span></td><td class="muted">待回传</td><td class="num">10-25 06:00 · 滞留 26h（超阈值已告警）</td></tr>
+          <tr><td class="num"><a href="#/p09-run">run-c9d0</a></td><td><span class="badge b-muted"><svg class="icon"><use href="#ic-terminal"/></svg>script</span></td><td>schedule</td><td><span class="badge b-info">RUNNING · 74%</span></td><td class="muted">—</td><td class="num">10-26 09:00</td></tr>
+          <tr><td class="num"><a href="#/p09-run">run-d4e5</a></td><td><span class="badge b-muted"><svg class="icon"><use href="#ic-terminal"/></svg>script</span></td><td>manual</td><td><span class="badge b-danger">FAILED</span></td><td><span class="badge b-danger">BLOCKED · 回写失败告警</span></td><td class="num">10-25 21:30</td></tr>
+          <tr><td class="num"><a href="#/p14">run-e2z7</a></td><td><span class="badge b-primary"><svg class="icon"><use href="#ic-zap"/></svg>agent · 不进门禁</span></td><td>manual</td><td><span class="badge b-danger">FAILED · <b>incomplete</b>（轨迹未完成，人工确认归属）</span></td><td class="muted">—</td><td class="num">10-24 15:02 · <a href="#/p14">Agent 任务详情</a></td></tr>
+          <tr><td class="num"><a href="#/p09-run">run-f0a9</a></td><td><span class="badge b-muted"><svg class="icon"><use href="#ic-terminal"/></svg>script</span></td><td>manual</td><td><span class="badge b-success">SUCCEEDED</span></td><td><span class="badge b-success">PASS</span></td><td class="num">10-24 10:11</td></tr>
+        </tbody>
+      </table>
+      <p class="card-sub">超大报告解析进度与「部分解析失败」显式标记（C1 ④#14）在此列表与详情页头呈现；终态无自动重跑入口，仅人工重新发起（12-PRD §7.1）。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P09 TestRun 详情（结构顺序冻结：§5.2 约束 2） ═══════════ -->
+  <section class="page" id="page-p09-run" data-page="p09-run" data-title="TestRun 详情 · run-a3f2" data-subnav="testcenter" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/test-center/runs/:runId</code> · M1 · 分区顺序冻结：页头状态机进度条 → 聚类报告区 → 用例结果表 → 证据查看器 → execution_source 徽标</div>
+    <header class="ph">
+      <h1>TestRun <span class="mono">run-a3f2</span></h1>
+      <span class="badge b-primary"><svg class="icon"><use href="#ic-zap"/></svg>agent · 不进门禁</span>
+      <span class="badge b-muted">trigger: manual · env: env-stg-01 · snapshot: <span class="mono">h:9c4f…1b2d</span></span>
+      <span class="actions"><a class="btn sec" href="#/p14"><svg class="icon"><use href="#ic-zap"/></svg>Agent 任务详情</a></span>
+    </header>
+
+    <!-- ① 页头状态机进度条（10 态；WAITING_APPROVAL 高亮并可跳审批中心） -->
+    <div class="card">
+      <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-activity"/></svg></span><h2>状态机进度条</h2><span class="meta"><span class="badge b-muted">10 态全集映射（05 §2.2）</span><span class="badge b-outline">WAITING_EXTERNAL 仅 external_ci 型</span></span></div>
+      <div class="rail-wrap">
+        <div class="state-rail" role="list">
+          <span class="st st-done">PENDING</span><i class="rsep done"></i><span class="st st-done">VALIDATING</span><i class="rsep done"></i><span class="st st-done">RUNNING</span><i class="rsep done"></i><span class="st st-active" style="cursor:pointer" onclick="location.hash='#/p10'" role="link" tabindex="0" title="高亮并可跳转审批中心">WAITING_APPROVAL</span><i class="rsep"></i><span class="st">STOPPING</span><i class="rsep"></i><span class="st st-term-ok" title="终态四色">SUCCEEDED</span><i class="rsep"></i><span class="st st-term-bad" title="终态四色">FAILED</span><i class="rsep"></i><span class="st" title="终态四色">CANCELLED</span><i class="rsep"></i><span class="st st-term-timeout" title="终态四色">TIMEOUT</span><i class="rsep"></i><span class="st" style="border-style:dashed" title="仅 external_ci 型出现">WAITING_EXTERNAL（本 run 隐藏）</span>
+        </div>
+      </div>
+      <p class="card-sub">时间线（含终止 / 审批 / 回收节点与操作者）：10-26 08:14 创建 → 08:15 校验通过 → 08:16 RUNNING → 08:19 Agent 遇 L2+ 动作（<a href="#/p10">审批中，滞留 2.1h</a>）；审批过期不迁移（停留本态，问题模型注 2）。</p>
+    </div>
+
+    <!-- ② 聚类报告区（每簇五要素；7 值枚举；unknown 独立区块；AI 局部横幅） -->
+    <div class="card" style="margin-top:var(--s4)">
+      <div class="chead"><span class="tile t-amber"><svg class="icon"><use href="#ic-grid"/></svg></span><h2>聚类报告</h2><span class="meta"><span class="badge b-muted">簇五要素 · correction_history 留痕</span></span></div>
+      <div class="warnline ai-local" style="display:none"><svg class="icon"><use href="#ic-alert"/></svg><span><b>AI 增强（归因 / 建议）降级中</b>：当前为规则聚类（置信度标注规则来源）；建议区置灰、自愈入口不出现。</span></div>
+      <div class="stack" style="gap:10px">
+        <div class="cluster sp-danger">
+          <div class="row"><span class="badge b-danger">assertion_real_bug</span><span class="mono">confidence 0.91</span><span class="badge b-danger">阻塞：是</span><span style="margin-left:auto"><button class="ghost-btn" onclick="toast('演示：人工修正 → 本地编辑后提交留痕（correction_history），原值保留展示')">人工修正</button></span></div>
+          <div class="row">14 条失败同源：断言金额精度不一致 · <a href="#/p20">证据：ev-201 截图</a> · <a href="#/p20">证据：ev-202 Trace</a></div>
+          <div class="row" style="justify-content:space-between"><span class="muted" style="font-size:var(--fs-xs)">建议（AI 增强）：<span class="ai-dep" style="padding:2px 8px;background:var(--color-secondary);border-radius:6px;color:var(--color-secondary-foreground)">金额统一按分（cent）断言 —— 建议区（降级时置灰）</span></span><details class="fold" style="margin-left:auto"><summary>修改历史</summary><div class="mono" style="margin-top:6px">10-26 09:02 王五（合成）：阻塞 是→是（备注：影响 3 个下游） · 原值保留</div></details></div>
+        </div>
+        <div class="cluster sp-warn">
+          <div class="row"><span class="badge b-warn">locator_stale</span><span class="mono">confidence 0.84</span><span class="badge b-warn">阻塞：是</span><span style="margin-left:auto"><button class="ghost-btn" onclick="toast('演示：人工修正入口')">人工修正</button></span></div>
+          <div class="row">5 条失败：按钮定位器失效（<span class="mono">btn-pay → btn-pay-v2</span>）· <a href="#/p13">自愈建议 → P13 定位器主备与健康度</a></div>
+          <div class="row" style="justify-content:space-between"><span><button class="btn sec ai-hide sm" onclick="toast('演示：可应用（confidence ≥ 0.7 仅控制入口可见性）；应用必经审批（P10 heal_apply L2）')">自愈建议「可应用」→ 发起审批</button></span><span class="muted" style="font-size:11px">can_auto_apply 恒 false · A4 生成 · 降级时入口不出现</span></div>
+        </div>
+        <div class="cluster sp-muted">
+          <div class="row"><span class="badge b-muted">flaky</span><span class="mono">confidence 0.62 · 规则聚类来源标注</span><span class="badge b-success">阻塞：否</span><span style="margin-left:auto"><button class="ghost-btn" onclick="toast('演示：人工修正入口')">人工修正</button></span></div>
+          <div class="row">2 条偶发超时 · 0.3 置信度照常显示（不包装）· <a href="#/p20">证据：ev-305</a></div>
+        </div>
+        <div>
+          <details class="fold"><summary><b>无法判断项（unknown / unclustered_refs）独立区块</b> — 2 条，逐条可点开，不包装</summary>
+            <div class="mono" style="margin-top:8px">ref-41 · step 7 断言超时（未入簇）</div>
+            <div class="mono">ref-42 · 环境抖动疑似（未入簇）</div>
+          </details>
+        </div>
+      </div>
+      <p class="card-sub">簇卡片可一键建 Jira 缺陷（C1 ②9 · 服务端写入）；修正类别仅按 7 值枚举：env_down / auth_expired / locator_stale / assertion_real_bug / flaky / data_issue / unknown。</p>
+    </div>
+
+    <!-- ③ 用例结果表（CaseResult / StepRun 下钻） -->
+    <div class="card" style="margin-top:var(--s4)">
+      <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-file"/></svg></span><h2>用例结果表</h2><span class="meta"><span class="badge b-muted">CaseResult → StepRun 下钻</span></span></div>
+      <table class="table">
+        <thead><tr><th>用例</th><th>结果</th><th>步骤</th><th>聚类簇</th></tr></thead>
+        <tbody>
+          <tr><td><b>支付超时重试</b> <span class="mono muted">case-014</span></td><td><span class="badge b-danger">FAILED</span></td><td class="muted">12 步 · step 7 断言失败</td><td><span class="badge b-danger">assertion_real_bug</span></td></tr>
+          <tr><td><b>结账页 · 购物车结算</b> <span class="mono muted">case-021</span></td><td><span class="badge b-danger">FAILED</span></td><td class="muted">9 步 · step 3 点击超时</td><td><span class="badge b-warn">locator_stale</span></td></tr>
+          <tr><td><b>下单主流程</b> <span class="mono muted">case-001</span></td><td><span class="badge b-success">PASSED</span></td><td class="muted">8 步</td><td class="muted">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ④ 证据查看器（截图 / 视频 / Trace 切换 + Trace 回放） -->
+    <div class="card" style="margin-top:var(--s4)">
+      <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-archive"/></svg></span><h2>证据查看器</h2><span class="meta"><span class="badge b-muted">三态切换 · 展示脱敏后内容</span></span></div>
+      <div class="tabs" role="tablist">
+        <button class="on" data-tab="shot" onclick="evTab(this)"><svg class="icon"><use href="#ic-camera"/></svg>截图</button>
+        <button data-tab="video" onclick="evTab(this)"><svg class="icon"><use href="#ic-video"/></svg>视频</button>
+        <button data-tab="trace" onclick="evTab(this)"><svg class="icon"><use href="#ic-activity"/></svg>Trace</button>
+      </div>
+      <div id="tab-shot" role="tabpanel">
+        <div class="shot lg"><div class="shot-bar"><i></i><i></i><i></i><span class="url">https://stg.demo-shop/checkout</span></div><div class="shot-body"><svg class="icon icon-lg"><use href="#ic-camera"/></svg>截图占位 · <span class="mono">ev-201 · step 7 @ 00:42.3</span> · 证据脱敏后呈现（FR-09）</div></div>
+      </div>
+      <div id="tab-video" role="tabpanel" hidden>
+        <div class="ev-dark"><svg class="icon icon-lg" style="width:26px;height:26px"><use href="#ic-video"/></svg>视频占位 · <span class="mono" style="color:#cbd5e1">ev-206 · case-021 全程 00:00–01:12</span></div>
+      </div>
+      <div id="tab-trace" role="tabpanel" hidden>
+        <div class="ev-dark" style="align-items:stretch;justify-content:flex-start;padding:10px 0">
+          <div class="tr-row"><span class="nm mono">trace-span · order/checkout</span><span class="track"><i style="left:0;width:34%"></i></span><span class="ms mono">412ms</span></div>
+          <div class="tr-row"><span class="nm mono">http POST /pay/charge</span><span class="track"><i class="bad" style="left:22%;width:24%"></i></span><span class="ms mono">289ms</span></div>
+          <div class="tr-row"><span class="nm mono">db SELECT inventory</span><span class="track"><i style="left:50%;width:6%"></i></span><span class="ms mono">3ms</span></div>
+        </div>
+        <p style="display:flex;gap:10px;align-items:center;margin:10px 0 0"><button class="btn sec" onclick="toast('演示：Trace 回放控件 — 原型占位（<1024px 不承诺，§7）')"><svg class="icon"><use href="#ic-play"/></svg>回放失败步骤</button><span class="muted" style="font-size:11px">任一失败步骤 100% 可回放（§6.6）</span></p>
+      </div>
+      <p class="card-sub">证据链接可从结论点击直达（Evidence over eloquence）；导出与检索见 <a href="#/p20">P20 证据中心</a>。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P10 审批中心（九要素分区顺序冻结） ═══════════ -->
+  <section class="page" id="page-p10" data-page="p10" data-title="审批中心" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/approvals</code> · M0 · C1 ②8 · C2 ②3/4 · C3 ②5 · C4 ②6A/6B · US-12、FR-04 · 特殊态：参数失效红色警示条「审批已失效」；发起人「批准」置灰（四眼）；超时升级提示；上游对象取消后操作区置灰 · 批准/拒绝后回跳发起页并回显状态</div>
+    <header class="ph"><h1>审批中心</h1><span class="badge b-danger">待办 3</span><span class="badge b-muted">九要素缺一不入队（服务端校验）· 分区顺序不得调换</span></header>
+    <div class="stack ac">
+
+      <!-- 卡片 A：参数被修改（警示条）+ 发起人批准置灰（四眼） -->
+      <article class="card ac sp-rk3">
+        <div class="warnline"><svg class="icon"><use href="#ic-alert"/></svg><span><b>参数被修改：</b>提交后参数哈希与受理时不一致（anti-TOCTOU，服务端复核），须重新核对。</span></div>
+        <div class="ac-head"><b>用例组执行审批</b><span class="mono">apr-7d2c</span><span class="risk rk3"><i></i>风险 L3</span><span class="badge b-warn">滞留 4.8h · 临期</span></div>
+        <div class="zone"><div class="zt">动作与目标资源</div><div style="font-size:var(--fs-md)">执行用例组 <span class="mono">order-center / suite:回归-2026W44</span> · 目标环境 <span class="mono">env-stg-01</span> · 发起人：王五（合成）</div></div>
+        <div class="zone"><div class="zt">前后 diff</div>
+          <div class="diff"><div class="ctx"><span class="sign"></span>suite:回归-2026W44</div><div class="del"><span class="sign">-</span><span>timeout_s: 60</span></div><div class="add"><span class="sign">+</span><span>timeout_s: 90</span></div><div class="ctx"><span class="sign"></span>concurrency: 4（未变）</div></div>
+        </div>
+        <div class="zone"><div class="zt">数据来源与模型 / Skill 版本</div><div style="font-size:var(--fs-md)">A1 生成批次 <span class="mono">a1-20261026-01</span> · model: <span class="mono">demo-llm@2026-09-01</span> · skill: <span class="mono">api_case_gen@1.3</span></div></div>
+        <div class="zone"><div class="zt">风险等级（L0–L4 色标）+ 成本估计</div><span class="risk rk3"><i></i>L3 高风险</span> · 成本估计 <span class="mono">≈ ¥0.42 / 0.9M token</span></div>
+        <div class="zone"><div class="zt">回滚能力说明</div><div style="font-size:var(--fs-md);color:var(--color-secondary-foreground)">执行类动作无外部副作用，<b>无需回滚</b>（执行产物自动留存证据）。</div></div>
+        <div class="zone"><div class="zt">参数哈希（默认折叠，点击展开核对）</div>
+          <details class="fold"><summary>展开哈希核对</summary><div class="mono" style="margin-top:6px">受理时 h:8a21…77c3 · 提交时 h:4be0…91a7 · <b style="color:var(--color-destructive)">不一致</b></div></details>
+        </div>
+        <div class="ops">
+          <button class="btn" aria-disabled="true" onclick="toast('演示：你是发起人 → 批准置灰（四眼原则，C2 §2.3）')" title="四眼原则：发起人不可自批">批准</button>
+          <button class="btn danger" onclick="toast('演示：拒绝必附理由 → TestRun CANCELLED，回跳发起页回显 REJECTED')">拒绝（附理由）</button>
+          <button class="btn sec" onclick="toast('演示：生成新请求并保留归因链 origin_request_id')">修改后重新提交</button>
+          <span class="hint">批准 / 拒绝后回跳发起页（§4.1 #12）</span>
+        </div>
+      </article>
+
+      <!-- 卡片 B：heal_apply（L2，正常态）+ 超时升级提示 -->
+      <article class="card ac sp-rk2">
+        <div class="ac-head"><b>定位器自愈审批（heal_apply）</b><span class="mono">apr-8e91</span><span class="risk rk2"><i></i>风险 L2</span><span class="badge b-warn">超时升级提示：已通知备审批人</span></div>
+        <div class="zone"><div class="zt">动作与目标资源</div><div style="font-size:var(--fs-md)">应用定位器自愈 <span class="mono">checkout.spec.ts · locator: btn-pay → btn-pay-v2（主备切换）</span> · 来自 run-a3f2 聚类簇</div></div>
+        <div class="zone"><div class="zt">前后 diff（heal_apply fixes: field / current / suggested）</div>
+          <div class="diff"><div class="del"><span class="sign">-</span><span>locator: getByRole("button", { name: "支付" })  # 失效 · 健康度 12%</span></div><div class="add"><span class="sign">+</span><span>locator: getByTestId("pay-v2")  # 建议 · confidence 0.84</span></div></div>
+        </div>
+        <div class="zone"><div class="zt">数据来源与模型 / Skill 版本</div><div style="font-size:var(--fs-md)">A4 自愈建议 · model: <span class="mono">demo-llm@2026-09-01</span> · skill: <span class="mono">web_heal@0.9</span> · 置信度 0.84</div></div>
+        <div class="zone"><div class="zt">风险等级 + 成本估计</div><span class="risk rk2"><i></i>L2 中风险</span> · 成本估计 <span class="mono">≈ ¥0.03</span></div>
+        <div class="zone"><div class="zt">回滚能力说明</div><div style="font-size:var(--fs-md)">有回滚：版本快照可恢复（<a href="#/p13">P13 版本快照 / 恢复入口</a>）。</div></div>
+        <div class="zone"><div class="zt">参数哈希</div>
+          <details class="fold"><summary>展开哈希核对</summary><div class="mono" style="margin-top:6px">h:2f6b…d401（一致）</div></details>
+        </div>
+        <div class="ops">
+          <button class="btn" onclick="toast('演示：批准 → hash 复核 + 行锁；执行后回跳 P13，状态回显 EXECUTED')">批准</button>
+          <button class="btn danger" onclick="toast('演示：拒绝必附理由 → 状态回显 REJECTED')">拒绝（附理由）</button>
+          <button class="btn sec" onclick="toast('演示：修改后重新提交 → 新请求保留归因链')">修改后重新提交</button>
+        </div>
+      </article>
+
+      <!-- 卡片 C：审批已失效（参数失效警示条） -->
+      <article class="card ac sp-rk3" style="opacity:.92">
+        <div class="warnline"><svg class="icon"><use href="#ic-alert"/></svg><span><b>审批已失效（EXPIRED）：</b>参数已失效；关联 TestRun 停留 WAITING_APPROVAL，不自动放行（问题模型注 2）——须重新提交或人工取消。</span></div>
+        <div class="ac-head"><b>gate_waiver 豁免审批</b><span class="mono">apr-5a03</span><span class="risk rk3"><i></i>风险 L3</span><span class="badge b-danger">EXPIRED · 已通知备审批人</span></div>
+        <div class="zone"><div class="zt">动作与目标资源</div><div style="font-size:var(--fs-md)">门禁豁免 <span class="mono">release:2026.10 · p95 门禁豁免一次</span>（gate_waiver，L3 审批链）</div></div>
+        <div class="zone"><div class="zt">前后 diff</div><div class="diff"><div class="del"><span class="sign">-</span><span>gate: perf/p95=800ms → 阻断</span></div><div class="add"><span class="sign">+</span><span>本次豁免（一次有效）</span></div></div></div>
+        <div class="zone"><div class="zt">数据来源</div><div style="font-size:var(--fs-md)">人工提交 · 赵六（合成）</div></div>
+        <div class="zone"><div class="zt">风险 + 成本</div><span class="risk rk3"><i></i>L3</span> · 无 AI 成本</div>
+        <div class="zone"><div class="zt">回滚能力说明</div><div style="font-size:var(--fs-md)">豁免一次有效，不可回滚（须声明）。</div></div>
+        <div class="zone"><div class="zt">参数哈希</div><details class="fold"><summary>展开哈希核对</summary><div class="mono" style="margin-top:6px">h:c1d9…88aa（失效前一致）</div></details></div>
+        <div class="ops"><button class="btn" disabled>批准（已失效）</button><button class="btn sec" onclick="toast('演示：重新提交生成新请求')">重新提交</button><span class="hint">豁免记录回显于 P11 / P12</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ═══════════ P11 质量门禁策略（中等） ═══════════ -->
+  <section class="page" id="page-p11" data-page="p11" data-title="质量门禁策略" data-subnav="gates" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/gates/policies</code> · M1→M2 · C1 ②6 · US-06、FR-12 · 三域同模型；「仅报告 ⇄ 阻断」显式切换确认；豁免记录（gate_waiver L3 回显）</div>
+    <header class="ph"><h1>质量门禁策略</h1><span class="badge b-muted">agent 型 run 不产生门禁评估（对象约束 7）</span></header>
+    <div class="stack">
+      <div class="card">
+        <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-shield"/></svg></span><h2>阈值配置（三域同模型）</h2><span class="meta"><span class="badge b-outline">三域：api / web / performance</span></span></div>
+        <table class="table">
+          <thead><tr><th>域</th><th>指标</th><th>阈值</th><th>模式</th></tr></thead>
+          <tbody>
+            <tr><td>api</td><td>成功率</td><td class="mono">≥ 95%</td><td><span class="badge b-danger">阻断</span></td></tr>
+            <tr><td>web</td><td>用例通过率</td><td class="mono">≥ 90%</td><td><span class="badge b-danger">阻断</span></td></tr>
+            <tr><td>performance</td><td>p95</td><td class="mono">&lt; 800ms</td><td><span class="badge b-warn">仅报告</span></td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:10px;font-size:var(--fs-md)"><button class="btn sec" onclick="toast('演示：「仅报告 ⇄ 阻断」为显式切换，须二次确认（FR-12）')">切换 performance → 阻断</button></p>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-file"/></svg></span><h2>豁免记录（gate_waiver）</h2></div>
+        <table class="table"><tbody>
+          <tr><td class="mono">release:2026.10 · p95</td><td>一次有效</td><td><span class="badge b-danger">EXPIRED</span></td><td><a href="#/p10">审批链回显 apr-5a03</a></td></tr>
+        </tbody></table>
+        <p class="card-sub">评估明细互查见 <a href="#/p12">P12 门禁评估历史</a>（同域导航，C1 ②6–7）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P12 门禁评估历史（占位） ═══════════ -->
+  <section class="page" id="page-p12" data-page="p12" data-title="门禁评估历史" data-subnav="gates" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/gates/evaluations</code> · M2 · C1 ②7 · US-06、FR-13 · 列表筛选/排序/分页进 URL</div>
+    <header class="ph"><h1>门禁评估历史</h1><span class="badge b-muted">M2</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-activity"/></svg></div>
+      <h2>本页占位</h2>
+      <ul><li>评估明细 + Check Run 回写状态（成功 / 失败告警）</li><li>豁免记录与策略互查（P11 ⇄ P12）</li></ul>
+    </div>
+  </section>
+
+  <!-- ═══════════ P13 Web 用例详情（占位） ═══════════ -->
+  <section class="page" id="page-p13" data-page="p13" data-title="Web 用例详情" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>…/cases/:caseId</code> · M2 · C1 支撑 · C2 ②1（heal_apply 定位器）· C4 ②7 · US-04/05 · 仅对 Web 域定义结构（缺口 G2）</div>
+    <header class="ph"><h1>Web 用例详情 · 结账页</h1><span class="badge b-muted">case-021 · checkout.spec.ts</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-grid"/></svg></div>
+      <h2>本页占位（结构仅 Web 域，缺口 G2）</h2>
+      <dl class="kv">
+        <dt>定位器主备</dt><dd><span class="mono">主：getByTestId("pay-v2") · 备：getByRole("button",{name:"支付"})</span></dd>
+        <dt>健康度</dt><dd><span class="badge b-success">主 98%</span> <span class="badge b-danger">备 12%</span></dd>
+      </dl>
+      <p style="font-size:var(--fs-md);margin-top:10px"><button class="ghost-btn">版本快照 / 恢复入口（C4 ②7）</button></p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P14 Agent 任务详情 ═══════════ -->
+  <section class="page" id="page-p14" data-page="p14" data-title="Agent 任务详情 · run-e2z7" data-subnav="testcenter" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/test-center/runs/:runId/agent</code>（execution_source=agent 型专属视图） · M2 · C1 ②5a · C2 ②1（Agent L2+）· C3 ②4 · C4 ②11 · US-13、FR-19 · 特殊态：轨迹时间线、终止信号「已持久化送达」、拒止记录可见、incomplete 标记</div>
+    <header class="ph">
+      <h1>Agent 任务 <span class="mono">run-e2z7</span></h1>
+      <span class="badge b-danger">FAILED · incomplete（轨迹未完成，人工确认归属）</span>
+      <span class="actions"><button class="btn danger" id="btn-stop"><svg class="icon"><use href="#ic-pause"/></svg>终止任务</button><button class="btn sec" onclick="toast('演示：一键转草稿 → 确认对话 → 跳 P05 评审流（DRAFT→PENDING_REVIEW→ACTIVE，C3 ②6）')"><svg class="icon"><use href="#ic-file"/></svg>转脚本草稿</button></span>
+    </header>
+    <p class="mono" id="stop-status" style="color:var(--color-warning);display:none;margin:0 0 10px;font-size:var(--fs-sm)">终止信号已持久化送达（STOPPING → 待停止完成；已采集部分结果照常可见，C3 ②4）</p>
+    <div class="grid-2-1">
+      <div class="card">
+        <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-zap"/></svg></span><h2>轨迹时间线</h2><span class="meta"><span class="badge b-muted">每步动作 + 截图 + 工具调用（A8 结构）</span></span></div>
+        <ul class="tl">
+          <li><div class="tt">step 1 · 打开结账页</div><div class="td">tool: browser.goto <span class="mono">https://stg.demo-shop/checkout</span> · 412ms</div>
+            <div class="shot" style="margin-top:8px"><div class="shot-bar"><i></i><i></i><i></i><span class="url">stg.demo-shop/checkout</span></div><div class="shot-body">截图占位（脱敏后证据）</div></div></li>
+          <li><div class="tt">step 2 · 填写支付信息</div><div class="td">tool: browser.fill（输入脱敏）· 88ms</div></li>
+          <li><div class="tt">step 3 · 点击支付按钮失败（超时）</div><div class="td">tool: browser.click <span class="mono">btn-pay</span> · 30s timeout · <a href="#/p09-run">证据 ev-301</a></div>
+            <div class="shot" style="margin-top:8px"><div class="shot-bar"><i></i><i></i><i></i><span class="url">失败截图 · ev-301</span></div><div class="shot-body">失败截图占位</div></div></li>
+          <li class="ref"><div class="tt" style="color:var(--color-destructive)">拒止记录 · 尝试未授权动作</div><div class="td">action: <span class="mono">修改生产配置</span> → 已拒止（未授权 L4 动作，副作用分级拦截；拒止记录可见，C1 ④#16）</div></li>
+          <li><div class="tt">step 4 · 自诊断重试 ×3 超总步数上限</div><div class="td">终止：STOPPING → CANCELLED 意图；心跳超时兜底 STOPPING → TIMEOUT（注 6）</div></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-info"/></svg></span><h2>任务信息</h2></div>
+        <dl class="kv">
+          <dt>execution_source</dt><dd><span class="badge b-primary">agent · 不进门禁</span></dd>
+          <dt>模型 / Skill</dt><dd class="mono">demo-llm@2026-09-01 · web_agent@0.8</dd>
+          <dt>成本</dt><dd class="mono">1.2k 步 · ¥0.86</dd>
+          <dt>产物</dt><dd><a href="#/p05">转脚本草稿（人工确认后入库，回评审流）</a></dd>
+          <dt>证据</dt><dd><a href="#/p20">证据中心检索</a></dd>
+        </dl>
+        <p class="card-sub">incomplete 终态无自动重跑，仅人工重新发起（FR-19 · 12-PRD §7.1）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P15 环境管理（中等） ═══════════ -->
+  <section class="page" id="page-p15" data-page="p15" data-title="环境管理" data-subnav="project" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/projects/:projectId/environments</code> 与 <code>/admin/environments</code>（双入口，同一页面） · M0 · C2 ②1（env_register）· US-14、FR-18 · 状态机：PENDING_APPROVAL → ACTIVE → DEGRADED → DISABLED</div>
+    <header class="ph"><h1>环境管理 · 订单中心（项目视图）</h1><span class="actions"><button class="btn" onclick="toast('演示：环境注册提交 → 进入 P10 审批（env_register，管理员审批，C2 ②1）')"><svg class="icon"><use href="#ic-plus"/></svg>注册环境</button></span></header>
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>环境</th><th>状态</th><th>健康检查</th><th>容量 / 配额</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td><b>env-stg-01</b> · staging</td><td><span class="badge b-success">ACTIVE</span></td><td class="num">2 min 前 · OK</td><td class="num">80% · 41%</td><td><a href="#/p08">去发起执行</a></td></tr>
+          <tr><td><b>env-stg-02</b> · staging</td><td><span class="badge b-warn">DEGRADED</span></td><td class="muted">健康检查失败 ×3</td><td class="num">—</td><td><span class="btn sec sm" aria-disabled="true" title="不可发起（原因展示，C3 ②2.2）">不可发起</span></td></tr>
+          <tr><td><b>env-pp-01</b> · preprod</td><td><span class="badge b-muted">PENDING_APPROVAL</span></td><td class="muted">—</td><td class="num">—</td><td><a href="#/p10">审批中（apr-6f21）</a></td></tr>
+          <tr><td><b>env-legacy-9</b> · legacy</td><td><span class="badge b-muted">DISABLED</span></td><td class="muted">人工停用</td><td class="num">—</td><td class="muted">在途处置按对象约束（ExecutionEnvironment）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══════════ P16 性能压测（中等） ═══════════ -->
+  <section class="page" id="page-p16" data-page="p16" data-title="性能压测" data-subnav="testcenter" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/test-center/performance</code> · M3 · C1 支撑 · C2 ②1（perf_high_risk）· C3 支撑 · US-08、FR-11 · 特殊态：白名单外目标 DENY 提示；场景级互斥排队提示；kill switch 入口</div>
+    <header class="ph"><h1>性能压测</h1><span class="badge b-warn">M3</span></header>
+    <div class="stack">
+      <div class="warnline"><svg class="icon"><use href="#ic-alert"/></svg><span><b>DENY：</b>目标 <span class="mono">https://prod.demo-shop</span> 不在压测白名单（FR-11 白名单校验，服务端强制）。</span></div>
+      <div class="card">
+        <div class="chead"><span class="tile t-amber"><svg class="icon"><use href="#ic-activity"/></svg></span><h2>压测场景</h2><span class="meta"><span class="badge b-muted">场景级互斥排队（C2 ⑤）</span></span></div>
+        <table class="table">
+          <thead><tr><th>场景</th><th>目标</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>下单峰值 500 VU（case-040）</td><td class="mono">stg.demo-shop</td><td><span class="badge b-warn">排队中（另一压测进行）</span></td></tr>
+            <tr><td>登录浪涌 200 VU</td><td class="mono">stg.demo-shop</td><td><span class="badge b-muted">可排队</span></td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:10px;font-size:var(--fs-md);display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="toast('演示：压测属 perf_high_risk，须经审批（P10）后执行；执行进入 run 监控（C2 ②2）')">提交压测（经审批）</button>
+        <button class="btn danger" onclick="toast('演示：kill switch 立即熔断当前压测（关停属即时类；恢复走 L3 审批，方向不对称，问题模型裁定 ⑥）')"><svg class="icon"><use href="#ic-pause"/></svg>kill switch（熔断）</button></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P17 Release 任务（中等） ═══════════ -->
+  <section class="page" id="page-p17" data-page="p17" data-title="Release 任务" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/releases</code> · M3 · C1 ②10 · C2 ②1（release_push）· US-09、FR-15 · 特殊态：Readiness Gate 红黄绿分区不达标项；FAILED_RETRYABLE 重试入口；豁免记录 · 平台只「准备」不「执行」，自动推送禁止</div>
+    <header class="ph"><h1>Release 任务 · 2026.10</h1><span class="badge b-warn">范围快照已冻结（提示，§6.11）</span></header>
+    <div class="stack">
+      <div class="card">
+        <div class="chead"><span class="tile t-amber"><svg class="icon"><use href="#ic-shield"/></svg></span><h2>Readiness Gate（红黄绿分区）</h2></div>
+        <table class="table">
+          <thead><tr><th>检查项</th><th>状态</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>关键用例通过率 100%</td><td><span class="badge b-success">绿</span></td><td class="muted">52/52</td></tr>
+            <tr><td>接口覆盖率 ≥ 85%</td><td><span class="badge b-danger">红 · 不达标</span></td><td class="muted">82% —— 需补测或豁免（gate_waiver）</td></tr>
+            <tr><td>性能 p95 &lt; 800ms</td><td><span class="badge b-warn">黄 · 阈值边缘</span></td><td class="muted">862ms（仅报告模式）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-archive"/></svg></span><h2>证据汇聚面板（FR-15）</h2></div>
+        <p style="font-size:var(--fs-md)">汇聚 TestRun / 证据 / 门禁评估 → <a href="#/p20">证据中心</a>；推送预览 + 确认走 release_push 审批卡片（P10，C1 ②10）。</p>
+        <p style="font-size:var(--fs-md);display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="toast('演示：release_push 审批卡片 → P10')">发起推送预览</button>
+        <button class="btn sec" onclick="toast('演示：FAILED_RETRYABLE 出边 → 可重试（对象约束 v1.2）')">重试（FAILED_RETRYABLE）</button></p>
+        <p class="card-sub">A5 草稿 missing_inputs 显式列出（2 项）；豁免记录 1 条（EXPIRED）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P18 Copilot 对话（占位，M3+） ═══════════ -->
+  <section class="page" id="page-p18" data-page="p18" data-title="Copilot 对话" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/assistant</code> · M3+ · C1 支撑（只读旁路） · US-10、FR-16 · 缺口 G6：里程碑临近时补充设计</div>
+    <header class="ph"><h1>Copilot 对话</h1><span class="badge b-muted">M3+ · 对应里程碑前隐藏入口</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-chat"/></svg></div>
+      <h2>本页占位</h2>
+      <ul><li>只读旁路：不替代页面流；copilot_write 类动作在 M4 前不存在</li><li>交互细节待 M3 临近时设计（缺口 G6）</li></ul>
+    </div>
+  </section>
+
+  <!-- ═══════════ P19 技能管理（占位，M4） ═══════════ -->
+  <section class="page" id="page-p19" data-page="p19" data-title="技能管理" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/skills</code> · M4 · C1 支撑 · C3 支撑（Agent 依赖） · 平台管理员 · 缺口 G6</div>
+    <header class="ph"><h1>技能管理</h1><span class="badge b-muted">M4 · 对应里程碑前隐藏入口</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-grid"/></svg></div>
+      <h2>本页占位</h2>
+      <ul><li>Agent 依赖的技能注册 / 版本（Skill 版本体现在审批卡片区 3）</li></ul>
+    </div>
+  </section>
+
+  <!-- ═══════════ P20 证据中心（中等） ═══════════ -->
+  <section class="page" id="page-p20" data-page="p20" data-title="证据中心" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/evidence</code> · M2 · C1 ②11 · C2 ②6 · C3 ②8 · C4 ②9 · Test Lead · 证据三件套（截图 / 视频 / Trace）+ 导出</div>
+    <header class="ph"><h1>证据中心</h1><span class="actions"><button class="ghost-btn" onclick="toast('演示：导出（API-223 下载）— 导出动作记审计（P24 可回溯）')"><svg class="icon"><use href="#ic-download"/></svg>导出选中</button></span></header>
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>证据</th><th>类型</th><th>来源 Run</th><th>脱敏</th><th>导出</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">ev-201</td><td><span class="badge b-muted">截图</span></td><td class="num"><a href="#/p09-run">run-a3f2</a></td><td><span class="badge b-success">已脱敏</span></td><td class="mono">object_key: art/…/ev-201.png</td></tr>
+          <tr><td class="mono">ev-206</td><td><span class="badge b-muted">视频</span></td><td class="num"><a href="#/p09-run">run-a3f2</a></td><td><span class="badge b-success">已脱敏</span></td><td class="mono">object_key: art/…/ev-206.webm</td></tr>
+          <tr><td class="mono">ev-311</td><td><span class="badge b-muted">Trace</span></td><td class="num"><a href="#/p09-run">run-d4e5</a></td><td><span class="badge b-success">已脱敏</span></td><td class="mono">object_key: art/…/ev-311.json</td></tr>
+        </tbody>
+      </table>
+      <p class="card-sub">证据链（Evidence over eloquence）：结论可点击直达本页对应证据。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P21 AI 成本看板（中等） ═══════════ -->
+  <section class="page" id="page-p21" data-page="p21" data-title="AI 成本看板" data-subnav="admin" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/admin/ai-cost</code> · M0 · C1 支撑 · C4 ②12 · US-11、FR-03</div>
+    <header class="ph"><h1>AI 成本看板</h1><span class="badge b-muted">组织 / 部门两级</span></header>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat" style="cursor:default"><div><div class="n n-blue">¥239.4</div><div class="lb">本周期 AI 总成本（合成）</div></div></div>
+      <div class="stat" style="cursor:default"><div><div class="n n-warn">2.8M</div><div class="lb">token 消耗</div></div></div>
+      <div class="stat" style="cursor:default"><div><div class="n n-ok">3</div><div class="lb">启用场景（A1 / A2 / A4）</div></div></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <div class="chead"><span class="tile t-blue"><svg class="icon"><use href="#ic-db"/></svg></span><h2>分场景成本（合成数据）</h2></div>
+        <div style="display:flex;flex-direction:column;gap:13px;font-size:var(--fs-sm);max-width:560px">
+          <div><div style="display:flex;justify-content:space-between"><span>A1 生成（api_case_gen）</span><span class="num">¥128.40</span></div><div class="bar" style="margin-top:5px"><i style="width:54%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span>A2 聚类归因</span><span class="num">¥36.10</span></div><div class="bar" style="margin-top:5px"><i class="warn" style="width:15%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span>A4 自愈建议 / Agent 执行</span><span class="num">¥74.90</span></div><div class="bar" style="margin-top:5px"><i style="width:31%"></i></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-zap"/></svg></span><h2>模型用量（与 P22 路由对照）</h2></div>
+        <table class="table"><thead><tr><th>场景</th><th>模型（路由）</th><th>token</th><th>降级时</th></tr></thead><tbody>
+          <tr><td>A1 生成</td><td class="mono">demo-llm@2026-09-01</td><td class="num">2.1M</td><td class="muted">置灰 / 规则降级</td></tr>
+          <tr><td>A2 归因</td><td class="mono">demo-llm-mini</td><td class="num">0.7M</td><td class="muted">规则聚类</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ P22 模型路由配置（占位） ═══════════ -->
+  <section class="page" id="page-p22" data-page="p22" data-title="模型路由配置" data-subnav="admin" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/admin/model-routes</code> · M0 · C1 支撑（E1 前置） · 平台管理员</div>
+    <header class="ph"><h1>模型路由配置</h1><span class="badge b-muted">M0</span></header>
+    <div class="card stub">
+      <div class="stub-ic"><svg class="icon icon-lg"><use href="#ic-zap"/></svg></div>
+      <h2>本页占位</h2>
+      <ul><li>场景 → 模型 → 优先级 → fallback 路由表（ModelRoute 对象，A2/A4 读取）</li><li>路由变更与降级顺序联动 P23 开关</li></ul>
+    </div>
+  </section>
+
+  <!-- ═══════════ P23 AI 能力开关与降级（中等） ═══════════ -->
+  <section class="page" id="page-p23" data-page="p23" data-title="AI 能力开关与降级" data-subnav="admin" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/admin/ai-switches</code> · M0 · FR-03/16、12-PRD §7.4 · 裁定：关停 L1 即时、恢复 L3 审批（方向不对称）· 压测 kill switch 演练入口关联 P16</div>
+    <header class="ph"><h1>AI 能力开关与降级</h1><span class="actions"><button class="ghost-btn" onclick="toast('演示：全局降级演练 — 顶栏开关即可体验横幅与置灰')">演练降级</button></span></header>
+    <div class="card">
+      <div class="chead"><span class="tile t-red"><svg class="icon"><use href="#ic-alert"/></svg></span><h2>层级开关</h2><span class="meta"><span class="badge b-muted">关停 L1 即时 · 恢复 L3 审批（不对称）</span></span></div>
+      <table class="table">
+        <thead><tr><th>层级</th><th>能力</th><th>关停影响</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td><span class="risk rk4"><i></i>L1</span></td><td>平台执行 / 报告 / 门禁</td><td class="muted">平台不可用（关停即时生效）</td><td><span class="badge b-success">开启</span></td><td><button class="btn danger sm" onclick="toast('演示：L1 关停即时；恢复须走 L3 审批（不对称裁定 ⑥）')">关停</button></td></tr>
+          <tr><td><span class="risk rk2"><i></i>L2</span></td><td>证据采集 / 产物</td><td class="muted">证据缺失（降级顺序：平台 → 证据 → AI 增强）</td><td><span class="badge b-success">开启</span></td><td><button class="btn sec sm" onclick="toast('演示：降级顺序由服务端决定，不静默（§6.8）')">降级</button></td></tr>
+          <tr><td><span class="risk rk1"><i></i>L3</span></td><td>AI 增强（A1 / A2 / A4）</td><td class="muted">生成置灰、规则聚类、自愈入口不出现</td><td><span class="badge b-success">开启</span></td><td><button class="btn sec sm ai-dep" onclick="toast('演示：见顶栏「模拟 AI 降级」')">降级演练</button></td></tr>
+        </tbody>
+      </table>
+      <p class="card-sub">降级期间全局横幅不静默（§6.8）；平台功能入口不受影响。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P24 审计检索（中等） ═══════════ -->
+  <section class="page" id="page-p24" data-page="p24" data-title="审计检索" data-subnav="admin" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/admin/audit</code> · M0 · C1 支撑 · C2 ②6 · C3 ②8 · C4 ②10 · 安全 · 审批与外部写审计回溯</div>
+    <header class="ph"><h1>审计检索</h1></header>
+    <div class="card">
+      <div style="display:flex;gap:10px;margin-bottom:14px;max-width:520px;align-items:flex-end">
+        <label class="field" style="margin:0;flex:1"><span>按 actor / 动作 / 对象检索</span><input type="search" placeholder="例：apr-7d2c 或 release_push"></label>
+        <button class="btn sec" style="margin-bottom:12px"><svg class="icon"><use href="#ic-search"/></svg>检索</button>
+      </div>
+      <table class="table">
+        <thead><tr><th>时间</th><th>Actor</th><th>动作</th><th>对象</th><th>来源</th></tr></thead>
+        <tbody>
+          <tr><td class="num">10-26 09:02</td><td>王五（合成）</td><td>cluster_correct</td><td class="mono">run-a3f2/cluster-1</td><td>P09</td></tr>
+          <tr><td class="num">10-26 08:19</td><td>system</td><td>approval_created</td><td class="mono">apr-7d2c</td><td>engine</td></tr>
+          <tr><td class="num">10-25 18:40</td><td>赵六（合成）</td><td>evidence_export</td><td class="mono">ev-311</td><td>P20</td></tr>
+        </tbody>
+      </table>
+      <p class="card-sub">审批与外部写动作全量留痕（C2 ②6 / C3 ②8 / C4 ②10）；不记录明文凭据。</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ P25 集成中心（中等） ═══════════ -->
+  <section class="page" id="page-p25" data-page="p25" data-title="集成中心（组织级）" data-subnav="admin" hidden>
+    <div class="page-annot"><b>原型标注</b> · 路由 <code>/admin/integrations</code> · M0→M2 · US-06/07/09、FR-13/14/15/18 · 组织级连接器 / webhook / Token 承接；凭据只存 credential_ref 或单向哈希</div>
+    <header class="ph"><h1>集成中心</h1><span class="actions"><button class="btn"><svg class="icon"><use href="#ic-plus"/></svg>新增连接器</button></span></header>
+    <div class="card">
+      <div class="chead"><span class="tile t-gray"><svg class="icon"><use href="#ic-lock"/></svg></span><h2>连接器</h2><span class="meta"><span class="badge b-muted">凭据只存 credential_ref / 单向哈希</span></span></div>
+      <table class="table">
+        <thead><tr><th>连接器</th><th>类型</th><th>Token / 凭据</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td><b>Jira（demo 站点）</b></td><td class="mono">jira</td><td class="mono">credential_ref: crd_jira_01（明文不入库 / 不回显）</td><td><span class="badge b-success">已连接</span></td><td><button class="ghost-btn">吊销 Token</button></td></tr>
+          <tr><td><b>GitHub</b></td><td class="mono">github</td><td class="mono">credential_ref: crd_gh_01</td><td><span class="badge b-success">已连接</span></td><td><button class="ghost-btn">吊销 Token</button></td></tr>
+          <tr><td><b>Jenkins</b></td><td class="mono">jenkins</td><td class="mono">JENKINS_WEBHOOK_SECRET（env 注入，不入库）</td><td><span class="badge b-warn">DEGRADED · 验签失败 ×2</span></td><td><button class="ghost-btn">重试验证</button></td></tr>
+        </tbody>
+      </table>
+      <p class="card-sub">webhook 端点：<span class="mono">POST /webhooks/ci/{connector}</span> · 出站通知渠道（API-165/166）在连接器上配置；项目级绑定见 <a href="#/p03">P03 集成</a>。</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<div id="toast" role="status" aria-live="polite"><svg class="icon"><use href="#ic-info"/></svg><span id="toast-text"></span></div>
+<noscript><div style="position:fixed;inset:auto 0 0 0;background:#dc2626;color:#fff;padding:10px;text-align:center">本原型需要启用 JavaScript 才能切换页面。</div></noscript>
+
+<script>
+const GROUP_LABEL={project:"项目",testcenter:"测试中心",gates:"门禁",admin:"管理后台"};
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function route(){
+  let h=location.hash.replace(/^#\/?/,"")||"p01";
+  if(!document.getElementById("page-"+h)) h="p01";
+  document.querySelectorAll(".page").forEach(p=>p.hidden=p.dataset.page!==h);
+  const sec=document.getElementById("page-"+h);
+  document.getElementById("top-title").textContent=sec.dataset.title||"";
+  const g=document.getElementById("crumb-group"), s=document.getElementById("crumb-sep");
+  if(sec.dataset.subnav){g.hidden=false;s.hidden=false;g.textContent=GROUP_LABEL[sec.dataset.subnav]||"";}
+  else{g.hidden=true;s.hidden=true;}
+  /* 侧栏树高亮 + 自动展开当前分组 */
+  document.querySelectorAll(".nav .trow").forEach(r=>r.classList.remove("active"));
+  document.querySelectorAll(".tsub a").forEach(a=>a.classList.toggle("on",a.dataset.goto===h));
+  const link=document.querySelector(`.nav a[data-goto="${h}"]`);
+  if(link){
+    const row=link.closest(".trow");
+    if(row)row.classList.add("active");
+    const item=link.closest(".titem");
+    if(item&&item.querySelector(".tsub"))item.classList.add("open");
+  }else{
+    /* P14 等无侧栏入口的深层页：点亮其所属分组行 */
+    const row=document.querySelector(`.nav .trow[data-row="g-${sec.dataset.subnav}"]`)||document.querySelector(`.nav .trow[data-row="g-${h}"]`);
+    if(row)row.classList.add("active");
+    const item=row&&row.closest(".titem");
+    if(item)item.classList.add("open");
+  }
+  window.scrollTo({top:0});
+}
+window.addEventListener("hashchange",route);
+
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById("toast");
+  document.getElementById("toast-text").textContent=msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2800);
+}
+window.toast=toast;
+
+/* P01 统计带：页内锚点滚动 + 高亮（不做跨页跳转） */
+document.querySelectorAll(".stat[data-scroll]").forEach(el=>{
+  const go=()=>{
+    const t=document.getElementById(el.dataset.scroll);
+    t.scrollIntoView({behavior:RM?"auto":"smooth",block:"center"});
+    t.style.boxShadow="0 0 0 2px var(--color-ring)";
+    setTimeout(()=>t.style.boxShadow="",900);
+  };
+  el.addEventListener("click",go);
+  el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
+});
+
+/* AI 降级演示开关（§6.8） */
+const aiToggle=document.getElementById("ai-toggle");
+aiToggle.addEventListener("click",()=>{
+  const on=document.body.classList.toggle("ai-degraded");
+  aiToggle.setAttribute("aria-pressed",on?"true":"false");
+  toast(on?"已进入 AI 降级演示态：横幅 / 局部横幅 / 建议与生成入口置灰 / 自愈入口隐藏":"已恢复正常态");
+});
+
+/* 通知入口（§6.9；呈现形态见缺口 G4） */
+document.getElementById("bell").addEventListener("click",()=>{
+  toast("演示：通知（审批结果 / 超时告警 / 用例失效 / Check Run 回写失败）点击跳转对应对象页；呈现形态见缺口 G4");
+});
+
+/* 全局搜索（原型占位：IA 未定义全局搜索页） */
+document.getElementById("global-search").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){e.preventDefault();toast("演示：全局搜索为原型占位 — IA §4.2 未定义全局搜索承接页，不新增页面");}
+});
+
+/* 移动侧栏 */
+document.getElementById("hamburger").addEventListener("click",()=>document.body.classList.toggle("sb-open"));
+document.querySelector(".content").addEventListener("click",()=>document.body.classList.remove("sb-open"));
+
+/* 侧栏树展开/收起 */
+document.querySelectorAll(".tgl").forEach(btn=>btn.addEventListener("click",e=>{
+  e.preventDefault();
+  btn.closest(".titem").classList.toggle("open");
+}));
+
+/* P08：向导节点完成态 + 模式 × 环境联动置灰 + 即时校验（§5.3 #1/#2） */
+const modeScript=document.getElementById("mode-script"), modeAgent=document.getElementById("mode-agent");
+let mode="script";
+function layerDone(n,on){
+  const l=document.getElementById("ln-"+n);
+  if(!l)return;
+  if(on){l.classList.add("done");l.innerHTML='<svg class="icon"><use href="#ic-check"/></svg>';}
+  else{l.classList.remove("done");l.textContent=n;}
+}
+function setMode(m){
+  mode=m;
+  modeScript.classList.toggle("sel",m==="script"); modeScript.setAttribute("aria-checked",m==="script");
+  modeAgent.classList.toggle("sel",m==="agent");   modeAgent.setAttribute("aria-checked",m==="agent");
+  document.getElementById("agent-notes").style.display=m==="agent"?"block":"none";
+  document.getElementById("mk-script").className=m==="script"?"badge b-success":"badge b-muted";
+  document.getElementById("mk-script").textContent=m==="script"?"已选":"未选";
+  document.getElementById("mk-agent").className=m==="agent"?"badge b-success":"badge b-muted";
+  document.getElementById("mk-agent").textContent=m==="agent"?"已选":"未选";
+  const ext=document.getElementById("ext-ci-lock"), extCard=ext.closest(".env-card");
+  ext.hidden=m!=="agent"; extCard.classList.toggle("lock",m==="agent");
+  if(m==="agent"){ extCard.classList.remove("sel"); }
+  layerDone(1,true);
+  const note=document.getElementById("degrade-agent-note");
+  note.style.display=(m==="agent"&&document.body.classList.contains("ai-degraded"))?"flex":"none";
+}
+[modeScript,modeAgent].forEach(el=>el.addEventListener("click",()=>setMode(el===modeAgent?"agent":"script")));
+[modeScript,modeAgent].forEach(el=>el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setMode(el===modeAgent?"agent":"script");}}));
+document.querySelectorAll(".env-opt").forEach(c=>{
+  c.addEventListener("click",()=>selectEnv(c));
+  c.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectEnv(c);}});
+});
+function selectEnv(c){
+  if(c.classList.contains("lock")){toast("演示：该环境不可选（DEGRADED / DISABLED / PENDING_APPROVAL），并显示原因（C3 ②2.2）");return;}
+  if(c.dataset.env==="ext-ci"&&mode==="agent"){toast("演示：选 Agent 时外部 CI 置灰（一期不支持，§5.3 #2）");return;}
+  document.querySelectorAll(".env-opt").forEach(x=>x.classList.remove("sel")); c.classList.add("sel");
+  layerDone(2,true);
+}
+document.getElementById("in-timeout").addEventListener("input",()=>{
+  const v=document.getElementById("in-timeout").value;
+  document.getElementById("f-timeout").classList.toggle("err",!v);
+  layerDone(3,!!v);
+});
+document.getElementById("btn-kickoff").addEventListener("click",()=>{
+  const tv=document.getElementById("in-timeout");
+  if(!tv.value){document.getElementById("f-timeout").classList.add("err");tv.focus();toast("校验失败：单步超时必填（即时校验，未提交可见）");return;}
+  toast("演示：创建 TestRun（PENDING，冻结 snapshot）→ 跳转 P09 详情");
+  location.hash="#/p09-run";
+});
+
+/* P09 详情：证据三件套切换（§6.6） */
+function evTab(btn){
+  const tabs=[...btn.parentElement.querySelectorAll("button")];
+  tabs.forEach(b=>b.classList.toggle("on",b===btn));
+  ["shot","video","trace"].forEach(id=>document.getElementById("tab-"+id).hidden=id!==btn.dataset.tab);
+}
+
+/* P14：终止按钮（§6.7） */
+const stopBtn=document.getElementById("btn-stop");
+if(stopBtn) stopBtn.addEventListener("click",()=>{
+  const s=document.getElementById("stop-status");
+  s.style.display="block"; stopBtn.disabled=true; stopBtn.textContent="终止中（信号已送达）";
+  toast("终止信号已持久化送达；STOPPING → CANCELLED 状态照常呈现，已采集部分结果照常可见");
+});
+
+route();
+</script>
+</body>
+</html>
