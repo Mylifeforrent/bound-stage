@@ -1,6 +1,6 @@
 # HuntAI Test API 契约（Stage 7）
 
-> - **Status: Draft**
+> - **Status: Approved**
 > - **日期**：2026-08-29（2026-09-06 修订） · **版本**：v1.1
 > - **阶段**：Stage 7 · 数据模型与 API 规范 · 本文件只覆盖 **OpenAPI 3.1 风格接口契约**
 > - **文档定位**：把 [前后端边界](../06_architecture_design/frontend_backend_boundary_spec-v1.0.md) 的语义操作与已定稿架构的命令/查询/SSE/Webhook 原则落到路径、方法、请求/响应语义、错误码与鉴权。实现映射（FastAPI / Pydantic / ORM）留给 Stage 11/12。

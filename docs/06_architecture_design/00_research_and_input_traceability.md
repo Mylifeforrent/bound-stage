@@ -1,11 +1,11 @@
 # 研究与输入可追溯性
 
-> - **Status: Draft**
+> - **Status: Approved**
 > - **日期**：2026-08-26
 > - **阶段**：Stage 6 · 系统架构设计 · 阶段二研究输入分册
 > - **用途**：登记本阶段实际读取输入、官方技术结论、采用边界、冲突与缺失，供同目录架构分册及后续 POC/评审使用
 > - **证据口径**：仓库事实来自本次实际读取并以相对路径和行号定位；LangGraph、Temporal、MCP 结论及官方链接由 Lead 事先核对，本次按授权直接消费，未进行网络访问或二次联网核验
-> - **决策属性**：本文为 Draft 输入与建议，不把候选技术、POC 或上游冲突提升为已批准结论
+> - **决策属性**：本文状态已于 2026-10-26 收口为 Approved（见 change_log）；正文登记的候选技术与冲突仍为决策输入，不自动构成实现授权
 > - **变更边界**：本文不修改、纠正或回写任何上游文档；需改变已冻结资产时，必须另走 `../13_changes/` 变更流程
 
 ## 0. 调研方法与限制
@@ -22,9 +22,9 @@
 
 | 输入 | 实际读取范围 | 本文消费点 |
 | --- | --- | --- |
-| `../../AGENTS.md` | 全文 | 目录职责、阶段输出、冻结资产与单文件变更边界；关键规则见 `../../AGENTS.md:13`、`../../AGENTS.md:17`、`../../AGENTS.md:35`、`../../AGENTS.md:61` |
+| `../../AGENTS.md` | 全文 | 目录职责、阶段输出、凭据防泄漏与 hooks 基线 |
 | `../00_setup/README.md` | 全文 | Stage 0 输出约定 |
-| `../00_setup/project_rules.md` | 全文 | 文档命名/目录、冻结资产变更红线；见 `../00_setup/project_rules.md:42`、`../00_setup/project_rules.md:52`、`../00_setup/project_rules.md:130` |
+| `../00_setup/project_rules.md` | 全文 | 文档命名/目录、凭据防泄漏基线；见 `../00_setup/project_rules.md` §1/§2/§6 |
 | `../README.md` | 全文 | 产品原则、双执行模式、审批治理、技术选型与 M0-M4 路线 |
 | `README.md` | 全文 | Stage 6 目录职责与既有输出登记 |
 
@@ -243,9 +243,9 @@
 
 ## 10. 不改上游声明
 
-本文只创建 Stage 6 研究输入分册，不修改 `docs/00_setup` 至 `docs/05_prototype`、`docs/08_prd`、`docs/13_changes` 或同目录其他 Stage 6 文档。文中发现的旧图、等级、缺失资产和来源不可复核问题均只登记为 Draft 冲突/缺失，不代表上游已被修正；后续若需变更已用于指导下游的设计资产，必须遵循 `../00_setup/project_rules.md:130` 至 `../00_setup/project_rules.md:134` 的登记、批准与 diff 要求。
+本文只创建 Stage 6 研究输入分册，不修改 `docs/00_setup` 至 `docs/05_prototype`、`docs/08_prd`、`docs/13_changes` 或同目录其他 Stage 6 文档。文中发现的旧图、等级、缺失资产和来源不可复核问题均只登记为登记期冲突/缺失，不代表上游已被修正；后续若需变更已用于指导下游的设计资产，先在 `docs/13_changes/change_log.md` 登记。
 
-## 11. Draft 结论
+## 11. 结论
 
 - **LangGraph**：采用范围限定为 Agent/Copilot 受限推理及可选 interrupt/checkpoint/streaming 适配；永不替代 ApprovalRequest、四眼、`param_hash`、TTL、行锁、tenant/RBAC、审计或 TestRun。
 - **Temporal**：已接受为持久工作流运行时；durable workflow 与长等待匹配，但 Activity 至少一次，所有外部副作用必须由业务幂等、查询后重试、external_request_id、unknown 结果和补偿/人工接管保证。生产 Gate 未通过即阻断放量并新建替代 ADR。

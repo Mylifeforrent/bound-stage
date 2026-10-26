@@ -9,7 +9,7 @@
 
 | 文件 | 状态 | 说明 |
 | --- | --- | --- |
-| [data_model.md](data_model.md) | Draft · 本次产出 | 逻辑数据模型：23 对象映射、从属结构、基础设施表、分级与迁移政策 |
+| [data_model.md](data_model.md) | Approved · 本次产出 | 逻辑数据模型：23 对象映射、从属结构、基础设施表、分级与迁移政策 |
 | [module_schema_ownership.drawio](module_schema_ownership.drawio) | 已生成 | 模块私有 schema 归属图（可编辑） |
 | [module_schema_ownership.svg](module_schema_ownership.svg) | 已生成 | 同上图 SVG 预览 |
-| [api_spec.md](api_spec.md) | Draft · 本次产出 | OpenAPI 3.1 风格 API 契约：路径/方法/语义 schema/错误码/SSE；不含本阶段表设计与实现代码 |
+| [api_spec.md](api_spec.md) | Approved · 本次产出 | OpenAPI 3.1 风格 API 契约：路径/方法/语义 schema/错误码/SSE；不含本阶段表设计与实现代码 |

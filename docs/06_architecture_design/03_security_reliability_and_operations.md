@@ -1,9 +1,9 @@
 # 安全、可靠性与运维架构
 
-> - **Status: Draft**
+> - **Status: Approved**
 > - **日期**：2026-08-26
 > - **阶段**：Stage 6（系统架构设计）阶段二产出，Agent C 分册
-> - **审批状态**：未批准；本文不将候选方案标记为定稿，不修改任何上游结论
+> - **审批状态**：已批准（2026-10-26 状态收口，见 `docs/13_changes/change_log.md`）；本文不修改任何上游结论
 > - **范围**：安全、可靠性、容量、可观测、事故响应、成本与运维边界；不包含代码、迁移、真实部署配置或供应商定稿
 > - **上游**：`../00_setup/project_rules.md`、`../README.md`、`../03_problem_modeling/problem_model.md`、`../04_interaction_design/chains/c1_north_star_quality_loop.md` 至 `c4_failure_triage.md`、`../08_prd/prd.md`、`architecture.md`、`frontend_backend_boundary_spec-v1.0.md`、`../01_market_research/market_research.md`、`../02_competitor_analysis/competitor_analysis.md`
 
@@ -127,11 +127,11 @@ Organization 是部门/事业部租户。所有核心表必须带 tenant_id，�
 - **冲突**：根 README 仍写“开发期 SQLite，需并发再切 PostgreSQL”（`../../README.md:47`）；PRD 与架构输入已指定 PostgreSQL + pgvector，并要求第一天多租户隔离（`../08_prd/prd.md:221`、`../08_prd/prd.md:222`）。
 - **Draft 推荐**：M0 集成与安全 Gate 使用 PostgreSQL；SQLite 只能作为无共享数据、无并发、无租户安全结论的本地开发便利，不得作为租户隔离、并发审批、幂等、恢复或 Temporal 生产 Gate 的验收环境。
 - **替代方案**：若阶段资源不足，单元测试可用 SQLite，但所有安全/并发/恢复集成 Gate 必须在 PostgreSQL 重跑。
-- **状态**：Draft，需总架构文档定稿；本文不修改上游。
+- **状态**：Approved（2026-10-26 收口，见 change_log）；本文不修改上游。
 
 ## 4. Vault、密钥与凭证
 
-上游要求连接器凭证仅存 Vault 引用，运行时读取；前端不持有外部凭证（`../03_problem_modeling/problem_model.md:228`、`frontend_backend_boundary_spec-v1.0.md:19`）。工程红线禁止密钥、生产数据和隐私数据进入 AI、日志或提交（`../00_setup/project_rules.md:124`）。
+上游要求连接器凭证仅存 Vault 引用，运行时读取；前端不持有外部凭证（`../03_problem_modeling/problem_model.md:228`、`frontend_backend_boundary_spec-v1.0.md:19`）。工程基线禁止密钥、生产数据和隐私数据进入 AI、日志或提交（`../00_setup/project_rules.md` §6）。
 
 ### 4.1 Draft 控制
 
@@ -520,7 +520,7 @@ M4 候选边界：
 
 ## 17. 验证 Gate
 
-任一 Gate 失败均不得以“仅内部平台”为由豁免。具体验证命令、测试数据和执行人由后续测试阶段落地；测试数据必须为合成/脱敏数据，遵守 AI 红线（`../00_setup/project_rules.md:126`）。
+任一 Gate 失败均不得以“仅内部平台”为由豁免。具体验证命令、测试数据和执行人由后续测试阶段落地；测试数据必须为合成/脱敏数据，遵守凭据防泄漏基线（`../00_setup/project_rules.md` §6）。
 
 | Gate | 必须证明 | 证据/阻断条件 |
 | --- | --- | --- |
@@ -568,8 +568,8 @@ M4 候选边界：
 | 制品 90 天仍待法务确认，不是本分册定稿值 | `../08_prd/prd.md:222`、`../08_prd/prd.md:363` |
 | RACI 目前只有角色级，人名待 M0 指派 | `../08_prd/prd.md:305`、`../08_prd/prd.md:365` |
 
-## 19. Draft 收口
+## 19. 收口与遗留
 
 本文完成安全、可靠性与运维的架构草案，但不代表各项生产 Gate 已批准。以下项目仍阻断相应生产放量：IdP 与会话数值、职能角色映射、PostgreSQL/RLS 决策、Artifact 访问契约、Vault 与扫描方案、保留/删除/Legal Hold/WORM、Connector 时间窗与重试预算、容量/SLO 校准、RPO/RTO、Temporal 生产就绪 Gate、MCP M4 评审、告警阈值、RACI 人名与值班安排。
 
-任何需要推翻冻结上游结论的选择，必须先走 `docs/13_changes/` 变更流程；本文仅记录冲突、推荐和替代，不回写上游、不标批准（`../00_setup/project_rules.md:130`）。
+任何需要推翻冻结上游结论的选择，先在 `docs/13_changes/change_log.md` 登记；本文仅记录冲突、推荐和替代，不回写上游。

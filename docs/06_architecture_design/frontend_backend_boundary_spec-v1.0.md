@@ -1,6 +1,6 @@
 # 前后端功能边界规范（frontend_backend_boundary_spec · v1.1）
 
-> - **Status: Draft**
+> - **Status: Approved**
 > - **日期**：2026-08-29 · **版本**：v1.1
 > - **文件名说明**：文件名后缀 `-v1.0` 为迁入时的**稳定文件名标识**，不随内容升版重命名（已被 12 份文档与 ADR 0009 交叉引用）；**权威版本以本行「版本」字段为准**。
 > - **流程定位**：Stage 6（系统架构设计）**前后端边界分册**——收口「前端职责 / 后端职责 / 数据与逻辑归属 / API 调用与错误边界」；与同目录 [frontend_design_spec-v1.0.md](frontend_design_spec-v1.0.md)（前端分册：页面 / 组件 / 状态呈现）、[architecture.md](architecture.md)（后端架构骨架）共同构成 Stage 6 产出
