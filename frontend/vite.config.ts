@@ -19,7 +19,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000",
+        // 默认本地裸跑后端 8000；端口被其他进程占用时可用 HUNTAI_API_PROXY 覆盖（联调用）。
+        target: process.env.HUNTAI_API_PROXY ?? "http://127.0.0.1:8000",
         changeOrigin: true,
       },
     },

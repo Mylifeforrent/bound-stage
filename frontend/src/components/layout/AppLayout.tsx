@@ -1,17 +1,11 @@
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
-  Box,
-  ClipboardCheck,
-  FolderKanban,
-  LayoutDashboard,
+  ChevronRight,
   LogOut,
   Menu,
-  PlayCircle,
-  Search,
-  Settings,
-  Shield,
 } from "lucide-react";
 import { api } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
@@ -22,55 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionReauthNotice } from "@/components/layout/SessionReauthNotice";
+import { AiDegradeBanner } from "@/components/domain/AiDegradeBanner";
+import { buildNavTree, deriveBreadcrumb } from "@/components/layout/navTree";
 import { useReauthRequired, useSession } from "@/hooks/useSession";
 import { ViewportProvider, useViewport } from "@/hooks/useViewport";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/uiStore";
-
-/** 10-item IA (05 §4.1). P18 / P19 stay hidden until their milestones. */
-const PRIMARY_NAV = [
-  { to: "/", label: "工作台", icon: LayoutDashboard, end: true },
-  { to: "/projects", label: "项目", icon: FolderKanban },
-  { to: "/test-center/runs", label: "测试中心", icon: PlayCircle },
-  { to: "/gates/policies", label: "门禁", icon: Shield },
-  { to: "/releases", label: "发布", icon: Box },
-  { to: "/approvals", label: "审批中心", icon: ClipboardCheck, badgeKey: "approvals" as const },
-  { to: "/evidence", label: "证据", icon: Search },
-  { to: "/admin/ai-cost", label: "管理", icon: Settings },
-] as const;
-
-function projectLinks(projectId: string | undefined) {
-  const base = projectId ? `/projects/${projectId}` : "/projects";
-  return [
-    { to: projectId ? `${base}/overview` : "/projects", label: "Overview", end: true },
-    { to: `${base}/cases`, label: "用例" },
-    { to: `${base}/plans`, label: "计划" },
-    { to: `${base}/runs`, label: "执行" },
-    { to: `${base}/environments`, label: "环境" },
-    { to: `${base}/integrations`, label: "集成" },
-    { to: `${base}/settings`, label: "设置" },
-  ];
-}
-
-const TEST_CENTER_LINKS = [
-  { to: "/test-center/kickoff", label: "发起执行" },
-  { to: "/test-center/runs", label: "TestRun" },
-  { to: "/test-center/performance", label: "性能压测" },
-];
-
-const GATE_LINKS = [
-  { to: "/gates/policies", label: "策略" },
-  { to: "/gates/evaluations", label: "评估历史" },
-];
-
-const ADMIN_LINKS = [
-  { to: "/admin/environments", label: "环境管理" },
-  { to: "/admin/ai-cost", label: "AI 成本" },
-  { to: "/admin/model-routes", label: "模型路由" },
-  { to: "/admin/ai-switches", label: "能力开关" },
-  { to: "/admin/audit", label: "审计检索" },
-  { to: "/admin/integrations", label: "集成中心" },
-];
 
 export function AppLayout() {
   return (
@@ -89,10 +40,22 @@ function AppShell() {
   const viewport = useViewport();
   const session = useSession();
   const iconOnly = viewport.sidebarIconOnly || collapsed;
-  const inProject = location.pathname.startsWith("/projects");
-  const inTestCenter = location.pathname.startsWith("/test-center");
-  const inGates = location.pathname.startsWith("/gates");
-  const inAdmin = location.pathname.startsWith("/admin");
+  const tree = useMemo(() => buildNavTree(projectId), [projectId]);
+  const crumbs = deriveBreadcrumb(location.pathname, tree);
+
+  /* 树节点开合状态：进入分组时自动展开，可手动收起 */
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (iconOnly || crumbs.length === 0) {
+      return;
+    }
+    setOpenGroups((prev) => (prev[crumbs[0].label] ? prev : { ...prev, [crumbs[0].label]: true }));
+    // crumbs[0].label 随 pathname 变化，直接依赖 pathname 更直观
+  }, [location.pathname, iconOnly]);
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
 
   const badgeQuery = useQuery({
     queryKey: queryKeys.notificationsBadge,
@@ -122,40 +85,108 @@ function AppShell() {
           )}
         >
           <div className="flex items-center gap-2 border-b border-sidebar-accent px-3 py-4">
-            <div className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-bold text-primary-foreground">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sm font-bold text-primary-foreground">
               H
             </div>
-            {iconOnly ? null : <span className="text-sm font-semibold text-white">HuntAI Test</span>}
+            {iconOnly ? null : (
+              <span className="min-w-0 text-sm font-semibold text-white">
+                HuntAI Test
+                <span className="block text-[10px] font-normal text-sidebar-foreground/40">
+                  企业内部 AI 测试平台
+                </span>
+              </span>
+            )}
           </div>
-          <nav className="flex flex-1 flex-col gap-0.5 px-2 py-2">
-            {PRIMARY_NAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={"end" in item ? item.end : false}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
-                    iconOnly && "justify-center px-0",
-                    isActive
-                      ? "bg-sidebar-accent font-medium text-white shadow-[inset_2px_0_0_0_var(--color-sidebar-primary)]"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-white",
-                  )
-                }
-              >
-                <item.icon className="size-4 shrink-0" />
-                {iconOnly ? null : <span className="flex-1">{item.label}</span>}
-                {!iconOnly && "badgeKey" in item ? (
-                  showCount ? (
-                    <Badge variant="destructive" className="border-transparent px-1.5 py-0 text-[10px]">
-                      {unread}
-                    </Badge>
-                  ) : badgeUndeveloped ? (
-                    <span className="text-[9px] text-sidebar-foreground/50">未开发</span>
-                  ) : null
-                ) : null}
-              </NavLink>
-            ))}
+          <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2" aria-label="一级导航">
+            {tree.map((item) => {
+              const groupActive = crumbs.length > 0 && crumbs[0].label === item.label;
+              if (item.children && !iconOnly) {
+                return (
+                  <div key={`${item.label}:${item.to}`} className="flex flex-col">
+                    <div
+                      className={cn(
+                        "flex items-center rounded-md transition-colors",
+                        groupActive
+                          ? "bg-sidebar-accent text-white shadow-[inset_2px_0_0_0_var(--color-sidebar-primary)]"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-white",
+                      )}
+                    >
+                      <NavLink
+                        to={item.to}
+                        end={false}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-sm"
+                      >
+                        <item.icon className="size-4 shrink-0" />
+                        <span className="flex-1 truncate">{item.label}</span>
+                      </NavLink>
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(item.label)}
+                        aria-expanded={!!openGroups[item.label]}
+                        aria-label={`展开/收起 ${item.label}`}
+                        className="px-1.5 py-2.5 text-sidebar-foreground/60 hover:text-white"
+                      >
+                        <ChevronRight
+                          className={cn("size-4 transition-transform", openGroups[item.label] && "rotate-90")}
+                        />
+                      </button>
+                    </div>
+                    {openGroups[item.label] ? (
+                      <div className="ml-2.5 flex flex-col border-l border-sidebar-accent py-0.5 pl-1.5">
+                        {item.children.map((leaf) => (
+                          <NavLink
+                            key={`${leaf.tag ?? ""}:${leaf.to}:${leaf.label}`}
+                            to={leaf.to}
+                            end={false}
+                            className={({ isActive }) =>
+                              cn(
+                                "relative flex items-center rounded-md px-2.5 py-1.5 text-xs transition-colors",
+                                isActive
+                                  ? "bg-sidebar-accent font-medium text-white"
+                                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-white",
+                              )
+                            }
+                          >
+                            <span className="truncate">{leaf.label}</span>
+                            {leaf.tag ? (
+                              <span className="ml-auto pl-2 text-[9px] text-sidebar-foreground/40">{leaf.tag}</span>
+                            ) : null}
+                          </NavLink>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+              return (
+                <NavLink
+                  key={`${item.label}:${item.to}`}
+                  to={item.to}
+                  end={"end" in item ? item.end : false}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                      iconOnly && "justify-center px-0",
+                      groupActive || isActive
+                        ? "bg-sidebar-accent font-medium text-white shadow-[inset_2px_0_0_0_var(--color-sidebar-primary)]"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-white",
+                    )
+                  }
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  {iconOnly ? null : <span className="flex-1">{item.label}</span>}
+                  {!iconOnly && "badgeKey" in item ? (
+                    showCount ? (
+                      <Badge variant="destructive" className="border-transparent px-1.5 py-0 text-[10px]">
+                        {unread}
+                      </Badge>
+                    ) : badgeUndeveloped ? (
+                      <span className="text-[9px] text-sidebar-foreground/50">未开发</span>
+                    ) : null
+                  ) : null}
+                </NavLink>
+              );
+            })}
           </nav>
           {iconOnly ? null : (
             <p className="px-3 py-3 text-[10px] leading-relaxed text-sidebar-foreground/40">
@@ -174,30 +205,36 @@ function AppShell() {
             >
               <Menu className="size-4" />
             </Button>
+            <nav aria-label="面包屑" className="flex min-w-0 flex-none items-center gap-1.5 text-sm">
+              {crumbs.length === 0 ? null : crumbs.map((crumb, index) => (
+                <span key={`${crumb.label}:${index}`} className="flex items-center gap-1.5">
+                  {index > 0 ? <ChevronRight className="size-3 text-muted-foreground/60" /> : null}
+                  {index === crumbs.length - 1 ? (
+                    <span className="font-semibold">{crumb.label}</span>
+                  ) : crumb.to ? (
+                    <NavLink to={crumb.to} className="text-xs text-muted-foreground hover:text-foreground">
+                      {crumb.label}
+                    </NavLink>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">{crumb.label}</span>
+                  )}
+                </span>
+              ))}
+            </nav>
             <div className="min-w-0 flex-1">
               {orgName || userName ? (
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-right text-xs text-muted-foreground lg:text-left">
                   {orgName ?? "组织"}
                   {userName ? ` · ${userName}` : ""}
                 </p>
               ) : null}
             </div>
-            <div
-              className={cn(
-                "hidden items-center gap-2 rounded-md border px-2.5 py-1 text-xs sm:flex",
-                banner.tone === "ok" && "border-success/30 bg-success-foreground text-success",
-                banner.tone === "warn" && "border-warning/30 bg-warning-foreground text-warning",
-                banner.tone === "pending" && "border-warning/30 bg-warning-foreground text-warning",
-              )}
-            >
-              <span
-                className={cn(
-                  "size-1.5 rounded-full",
-                  banner.tone === "ok" ? "bg-success" : "bg-warning",
-                )}
-              />
-              {banner.text}
-            </div>
+            {banner.tone === "pending" ? (
+              <div className="hidden items-center gap-2 rounded-md border border-warning/30 bg-warning-foreground px-2.5 py-1 text-xs text-warning sm:flex">
+                <span className="size-1.5 rounded-full bg-warning" />
+                {banner.text}
+              </div>
+            ) : null}
             <Button variant="ghost" size="icon" aria-label="通知（缺口 G4，非命令通道）">
               <Bell className="size-4" />
             </Button>
@@ -215,6 +252,11 @@ function AppShell() {
               <LogOut className="size-4" />
             </Button>
           </header>
+          {banner.tone === "warn" ? (
+            <div className="border-b bg-card px-4 py-2">
+              <AiDegradeBanner active scope={banner.text} />
+            </div>
+          ) : null}
           {viewport.mode === "readonly" ? (
             <div className="border-b border-warning/30 bg-warning-foreground px-4 py-2 text-xs text-warning">
               当前宽度 &lt; 1024px，仅只读浏览。批准、发起执行与终止请在桌面（≥1024px）操作。
@@ -225,10 +267,6 @@ function AppShell() {
               <SessionReauthNotice active />
             </div>
           ) : null}
-          {inProject ? <Subnav links={projectLinks(projectId)} /> : null}
-          {inTestCenter ? <Subnav links={TEST_CENTER_LINKS} /> : null}
-          {inGates ? <Subnav links={GATE_LINKS} /> : null}
-          {inAdmin ? <Subnav links={ADMIN_LINKS} /> : null}
           <main className={cn("flex-1 overflow-y-auto", viewport.mode === "desktop" ? "p-6" : "p-4")}>
             <div className="mx-auto flex max-w-7xl flex-col gap-6">
               <Outlet />
@@ -237,30 +275,6 @@ function AppShell() {
         </div>
       </div>
     </TooltipProvider>
-  );
-}
-
-function Subnav({ links }: { links: Array<{ to: string; label: string; end?: boolean }> }) {
-  return (
-    <div className="flex items-center gap-0 overflow-x-auto border-b bg-card px-4">
-      {links.map((link) => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          end={link.end}
-          className={({ isActive }) =>
-            cn(
-              "border-b-2 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors",
-              isActive
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )
-          }
-        >
-          {link.label}
-        </NavLink>
-      ))}
-    </div>
   );
 }
 
@@ -273,7 +287,7 @@ function aiBanner(
     return { tone: "pending", text: "加载组织信息…" };
   }
   if (error instanceof ApiError && error.kind === "permission") {
-    return { tone: "warn", text: "无组织访问权限" };
+    return { tone: "pending", text: "无组织访问权限" };
   }
   if (error || !data) {
     if (isUndeveloped(error)) {
