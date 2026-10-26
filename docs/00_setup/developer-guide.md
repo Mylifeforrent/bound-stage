@@ -24,7 +24,7 @@
 
 ## §1 读代码前必须建立的 6 条心智模型
 
-这 6 条是 `AGENTS.md` §3 / §4 的工程化落地；不理解它们，你会把「前端置灰」当成安全边界，或者把「调用返回 200」当成业务成功。
+这 6 条是前后端边界与数据层设计（`frontend_backend_boundary_spec-v1.0.md`、`data_model.md`）的工程化落地；不理解它们，你会把「前端置灰」当成安全边界，或者把「调用返回 200」当成业务成功。
 
 ### 1. 前端只呈现，后端裁决
 
@@ -154,7 +154,7 @@ FROZEN_ACTION_LEVELS = {
 要点：
 
 - **A1 在本仓库是本地确定性 stub**：`ai_governance/llm_factory.py` 的 `invoke`（`llm_factory.py:119`）不调用任何厂商 API，因此本地不需要模型 Key、也不需要外网。`InvokeInput`/`InvokeOutput` 在 `llm_factory.py:24,38`。
-- **必须写 `AIInvocationLog`**：`a1_service.py` 生成后会落 `ai_invocation_logs`，这是「AI 不得绕过日志」红线的实现。工单号 `run_generation_background`。
+- **必须写 `AIInvocationLog`**：`a1_service.py` 生成后会落 `ai_invocation_logs`，这是「AI 不绕过日志」设计约束的实现。工单号 `run_generation_background`。
 - **数据源类型**：`a1_service.py:29 VALID_SOURCE_TYPES = {"openapi", "postman", "curl"}`；`test_assets/service.py:46` 有同名常量。
 - **YAML 前缀一律被拒**：`a1_service.py:93 _reject_non_json_spec` 先检查原文是否以 `---` / `openapi:` / `swagger:` 开头（含 `curl`）；随后仅 `openapi`/`postman` 再强制 `json.loads`。所以 `curl` 不受「必须是 JSON 对象」限制，但 YAML 外观的原文仍会被拒。解析器 `_CURL_URL_RE` 在 `test_assets/source_parser.py:136`。
 - **采纳 ≠ 落库生效**：API-032 建的是 `DRAFT`；`API-032` 之前生成草稿**不会**自动建用例（有测试保护）。
@@ -398,7 +398,7 @@ uv run pytest tests/test_api_100_106_env_registry.py -q
 # 纯函数单测（最快，无需数据库）
 uv run pytest tests/test_policy_gate.py -q
 
-# 合入前的完整套件
+# 完整套件（本地自验）
 uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run pytest
 ```
 
@@ -425,7 +425,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run
 
 ### 5.2 修 bug 先写复现测试
 
-仓库规矩（`AGENTS.md` §6）：「修 bug 先写复现测试」。流程：
+仓库惯例：「修 bug 先写复现测试」。流程：
 
 1. 在对应 `backend/tests/test_api_*.py` 里加一条**当前会失败**的用例，断言正确行为。
 2. 跑它，确认失败原因就是你要修的那个。
@@ -433,7 +433,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run
 4. 再跑：该用例转绿，且同文件其它用例不回归。
 5. 每个 service/domain 新函数至少 1 条正例；含分支或外部调用再加 1 条异常路径。每个 API 端点至少 1 条 httpx happy-path。
 
-### 5.3 合入前的验证命令（不可跳过）
+### 5.3 本地自验命令
 
 后端（在 `backend/`）：
 
@@ -447,19 +447,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run
 npm run lint && npx tsc --noEmit && npm run build && npm run test
 ```
 
-四条命令**全部零失败**才允许合入；禁止 `git commit --no-verify`。
-
-### 5.4 切片进度必须回写
-
-若你的改动属于某个 `S-M*` 切片：提交前回写 `docs/10_ai_context/ai_context.md` 的「状态」列（取值只有 `未做` / `部分完成` / `完成`）与 `docs/10_ai_context/context/mN.md` 的对应要点。**未回写视为切片未完成**。部分完成必须写清残留与 M0 边界，禁止把占位实现标成无残留的完成。
-
-（本文档本身是 Stage 0 的教程，不属于 `S-M*` 切片，故不涉及回写。）
-
-### 5.5 读代码时的三条硬边界（照抄自 `AGENTS.md` §7）
-
-- 不要在前端推演状态机、本地计算门禁/配额/聚类/成本、本地生成 `param_hash` 或幂等键。
-- 不要让 AI 绕过 `AIInvocationLog`，也不要让业务模块直连模型厂商——A1–A8 只经 `llm_factory`。
-- 不要把 Agent Mode 结果写进门禁或发布证据；不要对 `execution_result=unknown` 盲重试或当成功放行。
+以上为本地自验参考命令（非合入门禁）。提交检查只要求 pre-commit（gitleaks 秘密扫描）通过；禁止 `git commit --no-verify`。
 
 ---
 
@@ -509,6 +497,6 @@ npm run lint && npx tsc --noEmit && npm run build && npm run test
 | `docs/06_architecture_design/architecture.md` | 控制面 / Worker 拓扑（本文 §1 的上游） |
 | `docs/07_backend_design/api_spec.md` | API 契约与完整错误码表 |
 | `docs/07_backend_design/data_model.md` | 逻辑表与分级 |
-| `docs/00_setup/project_rules.md` | 命名 / Git / 验证命令 / 红线细则 |
+| `docs/00_setup/project_rules.md` | 命名 / Git / 提交检查 / 本地验证命令 |
 
 **下一步**：挑一个 UI 动作，按 §0 的三栏法自己走一遍——找到页面 → 找到 router 函数 → 找到 service 判定 → 跑一遍对应测试。走通一次，这套代码你就有了地图。

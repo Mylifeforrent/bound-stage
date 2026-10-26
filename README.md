@@ -56,18 +56,17 @@ huntai-test/
 | Tailwind CSS + shadcn/ui | 组件源码直接进仓库而非黑盒依赖，适合单人快速搭建 AI 应用常见的对话式 UI |
 | TanStack Query + Zustand | 服务端状态与本地状态各用最简方案，不引入 Redux 级复杂度 |
 
-### 质量工具链（Stage 11 随代码初始化落地）
+### 质量工具链
 
-- 后端门禁：`ruff check` / `ruff format --check` / `mypy` / `pytest`
-- 前端门禁：ESLint / `tsc --noEmit` / `npm run build` / Vitest
-- 提交门禁：pre-commit + gitleaks（已配置，`.pre-commit-config.yaml`）
+- 本地自验命令：后端 `ruff check` / `ruff format --check` / `mypy` / `pytest`；前端 `tsc --noEmit` / `npm run build` / Vitest（见 `docs/00_setup/project_rules.md` §5）
+- 提交检查：pre-commit + gitleaks 秘密扫描（`.pre-commit-config.yaml`）；CI 同样只跑 gitleaks
 
 ## 关键文档
 
 | 文档 | 内容 |
 |---|---|
-| `AGENTS.md` | 仓库级 Agent 指令：目录职责边界、`.env` / uv 约定、阶段输出文件要求、Plan 优先规则 |
-| `docs/00_setup/project_rules.md` | 工程规范：命名、目录组织、Git 分支与 Conventional Commits、AI 生成代码 Review Checklist、测试与验证、AI 使用红线 |
+| `AGENTS.md` | 仓库级 Agent 指令：文档导航、目录结构、凭据防泄漏与提交 hooks |
+| `docs/00_setup/project_rules.md` | 工程规范：命名、目录组织、Git 分支与 Conventional Commits、提交检查、本地验证命令、凭据防泄漏基线 |
 | `docs/README.md` | 决策总纲（迁入）：北极星闭环、竞品结论、平台功能裁定、分期路线图、安全清单，以及迁入文档集的编号映射 |
 
 已就绪的工程基线：`.gitignore`（密钥与环境文件忽略）、`.env.example`（仅键名模板）、pre-commit + gitleaks（秘密扫描）、LangChain 文档 / 参考 MCP（ZCode `.zcode/config.json`、Cursor `.cursor/mcp.json`、Claude 兼容 `.mcp.json` 三份清单保持一致）。

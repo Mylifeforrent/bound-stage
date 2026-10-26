@@ -3,7 +3,7 @@
 > - **阶段**：Stage 12（`docs/12_deployment`）—— 发布和部署
 > - **日期**：2026-09-12
 > - **代码基线**：`main` `6b6a11a`；compose 实起验证于 2026-09-12（postgres:18 数据卷挂载点已按官方镜像改为 `/var/lib/postgresql`）
-> - **权威**：部署形态与硬约束引用 [tech_stack_decision-v1.0.md](../06_architecture_design/tech_stack_decision-v1.0.md) §3.8、[AGENTS.md](../../AGENTS.md) §1/§6、[project_rules.md](../00_setup/project_rules.md) §2/§5.3。本文**不新增** US / FR / AC / API 编号，**不发明** TBD 数值（RPO/RTO、SLO、会话秒数、K8s 时点等一律留空并登记）。
+> - **权威**：部署形态与硬约束引用 [tech_stack_decision-v1.0.md](../06_architecture_design/tech_stack_decision-v1.0.md) §3.8、[AGENTS.md](../../AGENTS.md) §1/§3、[project_rules.md](../00_setup/project_rules.md) §2/§5.3。本文**不新增** US / FR / AC / API 编号，**不发明** TBD 数值（RPO/RTO、SLO、会话秒数、K8s 时点等一律留空并登记）。
 > - **配套产出**：`backend/Dockerfile`、`backend/.dockerignore`、`frontend/Dockerfile`、`frontend/nginx.conf`、`frontend/.dockerignore`；探针代码 `backend/app/api/ops.py`
 
 ## 1. 范围与冻结约束
@@ -14,11 +14,11 @@
 
 | 约束 | 出处 |
 |---|---|
-| 构建产物是**容器镜像**；前端打静态资源，**禁止单独跑 Node 运行时** | `AGENTS.md` §6；`tech_stack_decision-v1.0.md` §3.8 |
+| 构建产物是**容器镜像**；前端打静态资源，**禁止单独跑 Node 运行时** | `tech_stack_decision-v1.0.md` §3.8 |
 | 前期 docker compose 单机 → 后期**同一批镜像**上 Kubernetes；**只换编排层，不改应用代码形态** | `tech_stack_decision-v1.0.md` §3.8 |
 | 配置**全部经环境变量注入**；**日志写 stdout**；**进程无本地业务状态**（M0/M1 制品卷是唯一例外） | `tech_stack_decision-v1.0.md` §3.8 |
 | 依赖管理 uv 0.12.7 + `uv.lock`；npm + `package-lock.json`；锁文件变更独立成 commit | `tech_stack_decision-v1.0.md` §3.8 |
-| M0/M1 秘密经 `.env` + Docker secret；业务库只存引用；`.env.example` 只含键名 | `AGENTS.md` §4 |
+| M0/M1 秘密经 `.env` + Docker secret；业务库只存引用；`.env.example` 只含键名 | `AGENTS.md` §2 |
 | M0/M1 数据面只有单 PostgreSQL；Temporal / Redis / MinIO / Vault **不启用** | `architecture.md` §15.1 |
 | 无法本地验证的变更必须记录验证方式与验证人 | `project_rules.md` §5.3 |
 
@@ -188,19 +188,11 @@ volumes:
 
 ## 7. CI/CD 配置说明
 
-`project_rules.md` §5.3 规定 **CI 由 Stage 12 引入，且「CI 为绿」是判定标准**。门控命令与本地完全一致，不另立一套：
+CI（`.github/workflows/ci.yml`）只做一件事：**gitleaks 秘密扫描**（凭据防泄漏检查，与 `.pre-commit-config.yaml` 的本地钩子同源）。原 `backend` / `frontend` / `images` 三个门禁 job 已于 2026-10-26 移除（登记见 `docs/13_changes/change_log.md`）；lint / 类型 / 测试 / 镜像构建降级为本地自验命令（见 `project_rules.md` §5），CI 不再执行。
 
-| Job | 命令 |
-|---|---|
-| backend | `uv sync --frozen` → `uv run ruff check .` → `uv run ruff format --check .` → `uv run mypy app` → `uv run pytest` |
-| frontend | `npm ci` → `npm run lint` → `npx tsc --noEmit` → `npm run build` → `npm run test` |
-| images | `docker build backend` + `docker build frontend` |
-
-`pytest` 需要 PostgreSQL：CI 用 service 容器提供，并通过 `DATABASE_URL` 指向它（`conftest.py` 优先读取已存在的 `DATABASE_URL`，取不到才回落到本地默认值）。
-
-> ✅ **已落地**：`.github/` 已于 2026-09-12 经用户批准加入顶层白名单，本片段与 `.github/workflows/ci.yml` 内容一致（校验：YAML 可解析，3 个 job：`backend` / `frontend` / `images`；触发器 `push`(main) + `pull_request` + `workflow_dispatch`）。
+> ✅ **已落地**：`.github/` 已于 2026-09-12 经用户批准加入顶层白名单（登记见 `docs/13_changes/change_log.md`）。
 >
-> ✅ **「CI 为绿」已取得（2026-09-12）**：`feat/stage12-ci-verify` 的 PR #3 在 GitHub Actions 上跑通 `backend` / `frontend` / `images` 后合入 `main`（merge commit `57ce649`）。`images` job 在 GitHub runner 上真实 `docker build` 了两个镜像——这是本地无 Docker daemon 时唯一的镜像可用性验证。验证人：用户（确认 CI 成功并 merge）。本代理环境 `gh` 仍未登录、仓库私有，未能复读 Actions 日志正文，以 merge commit + 用户确认为证据。
+> ✅ **「CI 为绿」历史记录（2026-09-12）**：`feat/stage12-ci-verify` 的 PR #3 在 GitHub Actions 上跑通当时的 `backend` / `frontend` / `images` 三个 job 后合入 `main`（merge commit `57ce649`）。`images` job 在 GitHub runner 上真实 `docker build` 了两个镜像——这是本地无 Docker daemon 时唯一的镜像可用性验证。验证人：用户（确认 CI 成功并 merge）。
 
 ```yaml
 name: ci
@@ -211,70 +203,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  backend:
+  gitleaks:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18
+    steps:
+      # fetch-depth: 0 拉全量历史，gitleaks 才能扫描完整提交历史。
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: huntai_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/huntai_test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.12.7"
-      - run: uv python install 3.14
-      - working-directory: backend
-        run: uv sync --frozen
-      - working-directory: backend
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-          uv run mypy app
-          uv run pytest
-
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - working-directory: frontend
-        run: npm ci
-      - working-directory: frontend
-        run: |
-          npm run lint
-          npx tsc --noEmit
-          npm run build
-          npm run test
-
-  images:
-    runs-on: ubuntu-latest
-    needs: [backend, frontend]
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t huntai-backend:${{ github.sha }} backend
-      - run: docker build -t huntai-frontend:${{ github.sha }} frontend
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-说明：`images` job 是**镜像可用性的唯一自动化验证**（本地无 Docker daemon）。action 版本此处用主版本标签；若组织要求供应链加固，应改为按 commit SHA 锁定（本仓库 `.pre-commit-config.yaml` 已有 gitleaks 秘密扫描门禁）。
+说明：镜像可用性验证（原 `images` job）随门禁精简一并移除；需要时可在本地 `docker build`，或临时把 job 加回工作流。action 版本此处用主版本标签；若组织要求供应链加固，应改为按 commit SHA 锁定。
 
 ## 8. 发布清单
 
-1. 确认冻结门控全绿：backend 四条 + frontend 四条命令零失败。
+1. 本地自验通过：backend 四条 + frontend 四条命令（`project_rules.md` §5，非门禁、发布前自检）。
 2. 确认 `uv.lock` / `package-lock.json` 与 `pyproject.toml` / `package.json` **同 commit 一致**（`uv lock --check`、`npm ci` 不报 lockfile 失配）。
 3. 确认镜像构建通过并打上**不可变 tag**（建议 commit SHA），不要只用 `latest`。
 4. 确认目标环境的环境变量齐备：§4 的 18 个必填键与所需可选键；生产必须 `SESSION_COOKIE_SECURE=true` 且 `APP_ENV=production`（后者会拒绝 loopback issuer）。

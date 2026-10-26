@@ -5,7 +5,7 @@
 > - **流程定位**：Stage 6（系统架构设计）**技术栈分册**——把前端框架 / UI 组件方案 / 状态管理 / 后端框架 / ORM / API 风格 / 测试框架 / 构建部署八类选型冻结到锁定版本；与 [architecture.md](architecture.md)（后端集成架构）、[frontend_design_spec-v1.0.md](frontend_design_spec-v1.0.md)（前端分册）、[frontend_backend_boundary_spec-v1.0.md](frontend_backend_boundary_spec-v1.0.md)（前后端边界分册）共同构成 Stage 6 产出
 > - **上游输入**：[architecture.md](architecture.md)（运行单元、数据面边界、SSE/Webhook 原则、Temporal 集成协议）· [frontend_design_spec-v1.0.md](frontend_design_spec-v1.0.md) §1.3 技术基线 · [frontend_backend_boundary_spec-v1.0.md](frontend_backend_boundary_spec-v1.0.md) §3/§5/§7（数据归属、必调 API 类别、错误处理职责）· [project_rules.md](../00_setup/project_rules.md) §1.1/§1.2/§5（Stage 0 已冻结的语言、lint、测试基线）· [决策总纲](../README.md) §4.2/§6/§7（Playwright 执行引擎、ApiToken 哈希、限流归属、pgvector 起步）· [ADR 0002](adr/0002_durable_workflow_runtime.md)
 > - **下游消费者**：[07_backend_design](../07_backend_design/README.md)（API 契约的实现约束）· Stage 11 前端初始化 · Stage 12 后端实施与部署
-> - **收口纪律**：只冻结**实现所必需**的技术；Stage 0 已定项按继承处理不重开；新增依赖一律走红线 R4（批准 → 审计 → 落锁）；本文不含任何代码、DDL、迁移或部署清单
+> - **收口纪律**：只冻结**实现所必需**的技术；Stage 0 已定项按继承处理不重开；新增依赖经用户确认后落锁；本文不含任何代码、DDL、迁移或部署清单
 > - **不做什么**：不定义 API 路由与错误码 schema（归 07_backend_design）；不定义表结构与索引；不预建 `backend/` / `frontend/` 子目录（`project_rules.md` §2.5 要求子结构定稿后才建）；不锁定 M2+ 才启用组件的小版本
 
 ---
@@ -47,7 +47,7 @@
 
 **为什么是纯 SPA 而不是 Next.js 之类的 SSR 框架**：25 个页面全部在登录态之后，没有 SEO 需求；boundary spec §2.1 要求「无租户上下文一律拒绝」，首屏也必须先建立会话。引入 SSR 会多一个 Node 运行时进程需要运维，与 §7 的单人运维目标相悖，且不解决任何已登记问题。
 
-**为什么 Vite 而不是其他构建工具**：`npm run build` 已被 `project_rules.md` §5.2 列为合入前必过命令；Vite 的 dev server 与生产构建是同一份配置，减少「本地能跑、构建挂掉」的排障面。
+**为什么 Vite 而不是其他构建工具**：`npm run build` 列于 `project_rules.md` §5.2 本地自验命令；Vite 的 dev server 与生产构建是同一份配置，减少「本地能跑、构建挂掉」的排障面。
 
 ### 3.2 UI 组件方案：Tailwind + shadcn/ui 源码内置
 
@@ -120,17 +120,17 @@ boundary spec §5.1 穷举了八类必须调用 API 的操作：领域对象读�
 
 ### 3.7 测试框架
 
-**后端**（`project_rules.md` §5.1 已定，本文补版本）：pytest + pytest-asyncio + httpx。§5.1 要求「每个 API 端点至少 1 条 happy-path 集成测试（httpx AsyncClient）」，httpx 同时是连接器的出站 HTTP 客户端，一个库两用。
+**后端**（`project_rules.md` §5.1 已定，本文补版本）：pytest + pytest-asyncio + httpx。httpx 同时是连接器的出站 HTTP 客户端，一个库两用。
 
 **前端**（`project_rules.md` §5.2 已定）：Vitest + React Testing Library。Vitest 复用 Vite 的配置与转换链，不需要第二套构建配置（这是相对 Jest 的主要优势）。jsdom 提供 DOM 环境。
 
 **E2E：Playwright 1.62.1**。这一项看似「新增」，实际不是：决策总纲 §4.2 已定 Web 自动化引擎为 Playwright，`frontend_design_spec` §6.6 要求证据查看器支持 Trace 回放——Trace 是 Playwright 的产物格式。平台自身的 E2E 与被测产品的执行引擎共用同一运行时，等于把运维面合并成一个。
 
-**验证入口不新增**：合入前命令沿用 `project_rules.md` §5，本文不另立命令。
+**验证入口不新增**：本地自验命令见 `project_rules.md` §5，本文不另立命令。
 
 ### 3.8 构建与部署：Docker 多阶段 → compose → Kubernetes
 
-**依赖管理 uv 0.12.7**：`AGENTS.md` §3 已强制（`uv sync` / `uv add`，`uv.lock` 入库，禁止 pip / requirements.txt / poetry）。前端对应 npm + `package-lock.json`（`project_rules.md` §4 已按此表述）。
+**依赖管理 uv 0.12.7**：`uv sync` / `uv add`，`uv.lock` 入库，禁止 pip / requirements.txt / poetry（`AGENTS.md` §3 与本文 §6 不采纳清单同口径）。前端对应 npm + `package-lock.json`。
 
 **构建产物是容器镜像**。后端多阶段构建（uv 装依赖 → 复制应用层）；前端构建出静态产物后由后端或反向代理托管，不单独跑 Node 运行时——少一个需要运维的进程。
 
@@ -249,7 +249,7 @@ boundary spec §5.1 穷举了八类必须调用 API 的操作：领域对象读�
 1. **Temporal**：启用前必须先满足 `architecture.md` §15.1 的八项生产 Gate；启用时 Outbox relay 的调度 Owner 从后端定时任务切到 Temporal，切换期间**同一业务步骤不得同时存在两个调度 Owner**（`architecture.md` §11.2 原文约束）。
 2. **MinIO**：启用前必须先完成本地卷制品的迁移与摘要复核；此前应用不得假设对象存储的任何 S3 专有语义（如预签名 URL），否则迁移会退化为改代码。
 3. **Vault**：启用前 `.env` 中的凭证必须已按 `architecture.md` §12「业务库只保存引用」的形态组织，即数据库里存的已经是引用而不是明文。
-4. 上述任一组件启用都属于「变更配置与依赖」，须按 `AGENTS.md` §5 先出 Plan，并在 `change_log` 登记。
+4. 上述任一组件启用都属于「变更配置与依赖」，在 `docs/13_changes/change_log.md` 登记。
 
 **这里承担的债务要说清楚**：M0/M1 用定时任务驱动轮询，无法提供 Temporal 的持久 Timer 与 workflow history。因此 M0/M1 的恢复保证弱于目标架构——进程重启后靠数据库状态重建，而不是靠 workflow 重放。`architecture.md` §11.3 要求的幂等键、CAS 与行锁在 M0/M1 **必须照常实现**，它们是这个阶段唯一的「重启不重复副作用」保障，不能因为「反正 M2 要上 Temporal」而推迟。
 
@@ -273,8 +273,8 @@ boundary spec §5.1 穷举了八类必须调用 API 的操作：领域对象读�
 | Next.js / Remix（SSR） | 无 SEO 需求，全部页面在登录态后；多一个 Node 运行时进程需要运维 |
 | Ant Design / MUI | 05 §4.3 冻结了三个关键页面的分区顺序，成品组件库意味着持续与默认布局对抗（详见 §3.2） |
 | structlog / OpenTelemetry SDK | `architecture.md` §14.3 的三类记录分离是**目标**要求。M0/M1 用标准库 logging + JSON formatter 输出到 stdout 即可满足「结构化日志」，Trace 因果链在只有单进程时价值有限。M2 拆出 Worker 后再评估，届时走 R4 |
-| pip / requirements.txt / poetry | `AGENTS.md` §3 明令禁止 |
-| pnpm / yarn | `project_rules.md` §4 已按 `package-lock.json` 表述，即 npm |
+| pip / requirements.txt / poetry | 依赖一律用 uv + `uv.lock`（`.zcode/rules/` 与 `.cursor/rules/` 同口径） |
+| pnpm / yarn | npm（`package-lock.json` 入库） |
 | MCP SDK | ADR 0008 与 `architecture.md` §15.3 已定 M0–M3 不引入 MCP client/server/SDK/传输 |
 | LangGraph | ADR 0008 限定其仅用于 Agent/Copilot（M3+），且「是否最终采用」仍未决定。M0–M2 无需求，不预锁版本 |
 
@@ -291,7 +291,7 @@ boundary spec §5.1 穷举了八类必须调用 API 的操作：领域对象读�
 | 前端依赖 | 全部为构建期/运行期库，无服务端组件 | **通过**。出问题即回滚 `package-lock.json`，影响面限于浏览器 |
 | 后端依赖 | 全部为进程内库，无独立守护进程 | **通过**。出问题即回滚 `uv.lock` |
 | 部署 | docker compose 单机 | **通过**。`docker compose up/down` + 镜像 tag 回滚 |
-| 升级 | uv / npm 锁文件驱动，锁文件变更独立成 commit（`AGENTS.md` §3） | **通过**。可逐依赖回退 |
+| 升级 | uv / npm 锁文件驱动，锁文件变更独立成 commit | **通过**。可逐依赖回退 |
 
 **未通过独立运维评估、因此推迟的组件**：Temporal（需要自身的数据库、history 保留策略、Worker Versioning 与在途 workflow 兼容性管理）、Vault（需要 unseal 流程、租约与轮换策略、自身的灾备）。这两项在 M2+ 启用前必须先补运维方案——**这是硬前置条件，不是建议**。这也是 §5 分期启用的直接动因。
 
@@ -316,8 +316,8 @@ boundary spec §5.1 穷举了八类必须调用 API 的操作：领域对象读�
 
 ## 9. 依赖治理规则
 
-1. **新增运行时依赖**固定顺序：获用户批准 → 审计（活跃度 / License / 无未修复通告）→ `uv add` / `npm install` 落锁（红线 R4）。
-2. **锁文件变更独立成 commit**（`AGENTS.md` §3），便于审计回溯。
+1. **新增运行时依赖**经用户确认后 `uv add` / `npm install` 落锁。
+2. **锁文件变更独立成 commit**，便于审计回溯。
 3. **每次发布前复扫**：按锁定版本逐个查询 PyPI `vulnerabilities` 与 npm advisory bulk 接口；`uv.lock` / `package-lock.json` 变更后必须复扫，不得沿用旧结论。
 4. **Starlette 特例**：与 FastAPI 同批次升级并同批次复验；升级 FastAPI 时**不得移除** Starlette 的显式直接依赖声明（理由见 §4.4）。
 5. **§4.5 观察项**每次发布前复查发布日期；连续 18 个月无发布且出现未修复通告即启动退出方案。
